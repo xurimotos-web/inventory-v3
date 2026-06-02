@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, Eye } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, Eye, ZoomIn } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Insumo } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -8,6 +8,7 @@ import InsumoModal from './InsumoModal';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import Modal from '../../components/shared/Modal';
+import ImageLightbox from '../../components/shared/ImageLightbox';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../lib/exportExcel';
 
@@ -22,6 +23,7 @@ export default function InsumosPage() {
   const [deleteTarget, setDeleteTarget] = useState<Insumo | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewInsumo, setViewInsumo] = useState<Insumo | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -49,6 +51,10 @@ export default function InsumosPage() {
     setDeleting(false);
   }
 
+  function openLightbox(src: string, alt: string) {
+    setLightbox({ src, alt });
+  }
+
   const filtered = insumos.filter((i) => {
     const matchSearch = i.nombre.toLowerCase().includes(search.toLowerCase()) ||
       (i.descripcion ?? '').toLowerCase().includes(search.toLowerCase());
@@ -73,7 +79,6 @@ export default function InsumosPage() {
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-
         <select
           value={filtroEstado}
           onChange={(e) => setFiltroEstado(e.target.value as typeof filtroEstado)}
@@ -84,7 +89,6 @@ export default function InsumosPage() {
           <option value="bajo">Stock bajo</option>
           <option value="agotado">Agotado</option>
         </select>
-
         {isAdmin && (
           <button
             onClick={() => { setSelected(null); setModalOpen(true); }}
@@ -110,9 +114,9 @@ export default function InsumosPage() {
         ))}
       </div>
 
-      {/* Tabla / Cards */}
+      {/* Tabla */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Desktop table */}
+        {/* Desktop */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -134,7 +138,16 @@ export default function InsumosPage() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         {insumo.imagen_url ? (
-                          <img src={insumo.imagen_url} alt="" className="w-9 h-9 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+                          <button
+                            onClick={() => openLightbox(insumo.imagen_url!, insumo.nombre)}
+                            className="relative w-9 h-9 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 group"
+                            title="Ver imagen ampliada"
+                          >
+                            <img src={insumo.imagen_url} alt="" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                              <ZoomIn size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </button>
                         ) : (
                           <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
                             <Package size={14} className="text-blue-400" />
@@ -153,9 +166,14 @@ export default function InsumosPage() {
                     <td className="px-5 py-3.5"><StockBadge insumo={insumo} /></td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => setViewInsumo(insumo)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <button onClick={() => setViewInsumo(insumo)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver detalle">
                           <Eye size={15} />
                         </button>
+                        {insumo.imagen_url && (
+                          <button onClick={() => openLightbox(insumo.imagen_url!, insumo.nombre)} className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title="Ver foto">
+                            <ZoomIn size={15} />
+                          </button>
+                        )}
                         {isAdmin && (
                           <>
                             <button onClick={() => { setSelected(insumo); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
@@ -189,7 +207,15 @@ export default function InsumosPage() {
             return (
               <div key={insumo.id} className="p-4 flex items-center gap-3">
                 {insumo.imagen_url ? (
-                  <img src={insumo.imagen_url} alt="" className="w-12 h-12 rounded-xl object-cover bg-gray-100 flex-shrink-0" />
+                  <button
+                    onClick={() => openLightbox(insumo.imagen_url!, insumo.nombre)}
+                    className="relative w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 group"
+                  >
+                    <img src={insumo.imagen_url} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                      <ZoomIn size={14} className="text-white opacity-0 group-hover:opacity-100" />
+                    </div>
+                  </button>
                 ) : (
                   <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
                     <Package size={18} className="text-blue-400" />
@@ -239,12 +265,28 @@ export default function InsumosPage() {
         loading={deleting}
       />
 
-      {/* Modal ver detalle */}
+      {/* Modal detalle */}
       <Modal open={!!viewInsumo} onClose={() => setViewInsumo(null)} title="Detalle del Insumo" size="md">
         {viewInsumo && (
           <div className="space-y-4">
-            {viewInsumo.imagen_url && (
-              <img src={viewInsumo.imagen_url} alt={viewInsumo.nombre} className="w-full h-48 object-cover rounded-xl" />
+            {viewInsumo.imagen_url ? (
+              <div className="relative rounded-xl overflow-hidden bg-gray-100 h-52 group cursor-zoom-in"
+                onClick={() => openLightbox(viewInsumo.imagen_url!, viewInsumo.nombre)}>
+                <img src={viewInsumo.imagen_url} alt={viewInsumo.nombre} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-xl px-3 py-2 flex items-center gap-2 text-sm font-medium text-gray-800">
+                    <ZoomIn size={16} />
+                    Ver en tamaño completo
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="h-32 rounded-xl bg-gray-50 flex items-center justify-center border-2 border-dashed border-gray-200">
+                <div className="text-center">
+                  <Package size={28} className="text-gray-300 mx-auto mb-1" />
+                  <p className="text-xs text-gray-400">Sin imagen</p>
+                </div>
+              </div>
             )}
             <div className="grid grid-cols-2 gap-3 text-sm">
               {[
@@ -271,6 +313,14 @@ export default function InsumosPage() {
           </div>
         )}
       </Modal>
+
+      {/* Lightbox */}
+      <ImageLightbox
+        open={!!lightbox}
+        src={lightbox?.src ?? ''}
+        alt={lightbox?.alt ?? ''}
+        onClose={() => setLightbox(null)}
+      />
     </div>
   );
 }

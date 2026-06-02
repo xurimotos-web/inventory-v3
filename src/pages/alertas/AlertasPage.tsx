@@ -24,6 +24,26 @@ export default function AlertasPage() {
       });
   }, []);
 
+  function handleExportSinStock() {
+    const sinStock = insumos.filter((i) => i.stock_actual <= 0);
+    if (sinStock.length === 0) { toast.error('No hay insumos agotados'); return; }
+    const rows = sinStock.map((i) => {
+      const cat = i.categoria as unknown as { nombre: string };
+      return {
+        Estado: 'AGOTADO',
+        Insumo: i.nombre,
+        Categoría: cat?.nombre ?? '—',
+        'Stock Actual': 0,
+        'Stock Mínimo': i.stock_minimo,
+        'A Comprar (mínimo)': i.stock_minimo,
+        Unidad: i.unidad,
+        'Costo Estimado Reposición': i.stock_minimo * i.costo_unitario,
+      };
+    });
+    exportToExcel(rows, `sin_stock_${new Date().toISOString().slice(0, 10)}`, 'Sin Stock');
+    toast.success(`${sinStock.length} insumos sin stock exportados`);
+  }
+
   function handleExport() {
     if (insumos.length === 0) { toast.error('No hay alertas activas'); return; }
     const rows = insumos.map((i) => {
@@ -68,15 +88,23 @@ export default function AlertasPage() {
           <p className="text-3xl font-bold text-amber-700">{bajos.length}</p>
           <p className="text-xs text-amber-500 mt-1">insumos bajo mínimo</p>
         </div>
-        <div className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-col justify-between">
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Acción</p>
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-col justify-between gap-2">
+          <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Exportar</p>
           <button
             onClick={handleExport}
             disabled={insumos.length === 0}
             className="flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-800 text-white rounded-xl text-sm font-medium hover:bg-gray-900 transition-colors disabled:opacity-50"
           >
             <Download size={15} />
-            Exportar Lista de Compras
+            Lista de compras
+          </button>
+          <button
+            onClick={handleExportSinStock}
+            disabled={agotados.length === 0}
+            className="flex items-center justify-center gap-2 py-2.5 px-4 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+          >
+            <Download size={15} />
+            Solo sin stock ({agotados.length})
           </button>
         </div>
       </div>

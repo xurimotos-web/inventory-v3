@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Download, PackageMinus, Filter } from 'lucide-react';
+import { Plus, Search, Download, PackageMinus, Filter, User } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Salida } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -21,7 +21,7 @@ export default function SalidasPage() {
   async function load() {
     let query = supabase
       .from('salidas')
-      .select('*, insumo:insumos(nombre, unidad), profile:profiles(nombre, departamento, cargo)')
+      .select('*, insumo:insumos(nombre, unidad, imagen_url), profile:profiles(nombre, departamento, cargo)')
       .order('created_at', { ascending: false });
 
     if (!isAdmin) {
@@ -70,13 +70,15 @@ export default function SalidasPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Banner para usuario no admin */}
+      {/* Banner usuario */}
       {!isAdmin && (
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
           <PackageMinus className="text-blue-600 flex-shrink-0 mt-0.5" size={20} />
           <div>
             <p className="text-blue-800 font-semibold text-sm">Registro de Consumo</p>
-            <p className="text-blue-600 text-xs mt-0.5">Aquí puedes registrar los insumos que retiras del almacén. Tu nombre, departamento y cargo se registran automáticamente.</p>
+            <p className="text-blue-600 text-xs mt-0.5">
+              Aquí puedes ver todas tus salidas registradas. Tu nombre, departamento y cargo quedan guardados automáticamente en cada movimiento.
+            </p>
           </div>
         </div>
       )}
@@ -134,7 +136,7 @@ export default function SalidasPage() {
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Fecha</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Insumo</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Cantidad</th>
-                {isAdmin && <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell">Usuario</th>}
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Registrado por</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden lg:table-cell">Departamento</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden xl:table-cell">Cargo</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden xl:table-cell">Observaciones</th>
@@ -142,17 +144,42 @@ export default function SalidasPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((salida) => {
-                const insumo = salida.insumo as unknown as { nombre: string; unidad: string };
-                const profile = salida.profile as unknown as { nombre: string };
+                const insumo = salida.insumo as unknown as { nombre: string; unidad: string; imagen_url?: string };
+                const profile = salida.profile as unknown as { nombre: string; departamento: string; cargo: string };
                 return (
                   <tr key={salida.id} className="hover:bg-blue-50/20 transition-colors">
                     <td className="px-5 py-3.5 text-gray-500 text-xs whitespace-nowrap">{formatDate(salida.created_at)}</td>
-                    <td className="px-5 py-3.5 font-medium text-gray-800">{insumo?.nombre ?? '—'}</td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        {insumo?.imagen_url ? (
+                          <img src={insumo.imagen_url} alt="" className="w-8 h-8 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                            <PackageMinus size={13} className="text-blue-400" />
+                          </div>
+                        )}
+                        <span className="font-medium text-gray-800">{insumo?.nombre ?? '—'}</span>
+                      </div>
+                    </td>
                     <td className="px-5 py-3.5">
                       <span className="font-semibold text-red-600">-{salida.cantidad}</span>
                       <span className="text-gray-400 text-xs ml-1">{insumo?.unidad}</span>
                     </td>
-                    {isAdmin && <td className="px-5 py-3.5 text-gray-600 hidden md:table-cell">{profile?.nombre ?? '—'}</td>}
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          {profile?.nombre ? (
+                            <span className="text-blue-700 text-xs font-semibold">{profile.nombre.charAt(0).toUpperCase()}</span>
+                          ) : (
+                            <User size={12} className="text-blue-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{profile?.nombre ?? '—'}</p>
+                          <p className="text-xs text-gray-400 truncate hidden sm:block">{salida.cargo}</p>
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{salida.departamento}</td>
                     <td className="px-5 py-3.5 text-gray-600 hidden xl:table-cell">{salida.cargo}</td>
                     <td className="px-5 py-3.5 text-gray-500 text-xs hidden xl:table-cell max-w-40 truncate">{salida.observaciones ?? '—'}</td>
