@@ -10,6 +10,7 @@ import SalidasPage from './pages/salidas/SalidasPage';
 import AlertasPage from './pages/alertas/AlertasPage';
 import ReportesPage from './pages/reportes/ReportesPage';
 import UsuariosPage from './pages/usuarios/UsuariosPage';
+import ConfiguracionPage from './pages/configuracion/ConfiguracionPage';
 import { PageLoader } from './components/shared/LoadingSpinner';
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="alertas" element={<AdminRoute><AlertasPage /></AdminRoute>} />
         <Route path="reportes" element={<AdminRoute><ReportesPage /></AdminRoute>} />
         <Route path="usuarios" element={<AdminRoute><UsuariosPage /></AdminRoute>} />
+        <Route path="configuracion" element={<AdminRoute><ConfiguracionPage /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

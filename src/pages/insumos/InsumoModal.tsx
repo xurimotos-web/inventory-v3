@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Modal from '../../components/shared/Modal';
 import ImageUpload from '../../components/shared/ImageUpload';
 import { supabase } from '../../lib/supabase';
-import type { Insumo, Categoria } from '../../types';
+import type { Insumo, Categoria, Unidad } from '../../types';
 import toast from 'react-hot-toast';
 
 interface InsumoModalProps {
@@ -12,21 +12,22 @@ interface InsumoModalProps {
   insumo?: Insumo | null;
 }
 
-const UNIDADES = ['unidad', 'kg', 'g', 'litro', 'ml', 'caja', 'paquete', 'rollo', 'metro', 'par'];
-
 const EMPTY = {
-  nombre: '', descripcion: '', categoria_id: '', unidad: 'unidad',
+  nombre: '', descripcion: '', referencia: '', tienda_referencia: '',
+  categoria_id: '', unidad: 'unidad',
   stock_actual: 0, stock_minimo: 0, costo_unitario: 0, imagen_url: '',
 };
 
 export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoModalProps) {
   const [form, setForm] = useState({ ...EMPTY });
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [unidades, setUnidades] = useState<Unidad[]>([]);
   const [saving, setSaving] = useState(false);
   const isEdit = !!insumo;
 
   useEffect(() => {
     supabase.from('categorias').select('*').order('nombre').then(({ data }) => setCategorias(data ?? []));
+    supabase.from('unidades').select('*').order('nombre').then(({ data }) => setUnidades(data ?? []));
   }, []);
 
   useEffect(() => {
@@ -34,6 +35,8 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
       setForm({
         nombre: insumo.nombre,
         descripcion: insumo.descripcion ?? '',
+        referencia: insumo.referencia ?? '',
+        tienda_referencia: insumo.tienda_referencia ?? '',
         categoria_id: String(insumo.categoria_id ?? ''),
         unidad: insumo.unidad,
         stock_actual: insumo.stock_actual,
@@ -57,6 +60,8 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
     const payload = {
       nombre: form.nombre.trim(),
       descripcion: form.descripcion.trim() || null,
+      referencia: form.referencia.trim() || null,
+      tienda_referencia: form.tienda_referencia.trim() || null,
       categoria_id: form.categoria_id ? Number(form.categoria_id) : null,
       unidad: form.unidad,
       stock_actual: Number(form.stock_actual),
@@ -116,6 +121,30 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
           />
         </div>
 
+        {/* Referencia y Tienda */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Código / Referencia</label>
+            <input
+              type="text"
+              value={form.referencia}
+              onChange={(e) => set('referencia', e.target.value)}
+              placeholder="Ej: REF-001, SKU123"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Tienda / Local proveedor</label>
+            <input
+              type="text"
+              value={form.tienda_referencia}
+              onChange={(e) => set('tienda_referencia', e.target.value)}
+              placeholder="Ej: Ferretería Juan, Sodimac"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
         {/* Categoría y Unidad */}
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -138,7 +167,10 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
               onChange={(e) => set('unidad', e.target.value)}
               className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
-              {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
+              {unidades.length > 0
+                ? unidades.map((u) => <option key={u.id} value={u.nombre}>{u.nombre}</option>)
+                : ['unidad','kg','g','litro','ml','caja','paquete','rollo','metro','par'].map((u) => <option key={u} value={u}>{u}</option>)
+              }
             </select>
           </div>
         </div>

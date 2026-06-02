@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, BarChart3, TrendingDown, Package } from 'lucide-react';
+import { Download, BarChart3, TrendingDown, Package, Calendar, FileDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Salida, Entrada, Insumo } from '../../types';
 import { formatCurrency, exportToExcel, formatDate } from '../../lib/exportExcel';
@@ -9,12 +9,22 @@ import toast from 'react-hot-toast';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
 export default function ReportesPage() {
   const [salidas, setSalidas] = useState<Salida[]>([]);
   const [entradas, setEntradas] = useState<Entrada[]>([]);
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<'mes' | '3meses' | 'anio'>('mes');
+
+  const now = new Date();
+  const [filtroTipo, setFiltroTipo] = useState<'rango' | 'mes' | 'anio'>('mes');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const [filtroMes, setFiltroMes] = useState(now.getMonth());
+  const [filtroAnio, setFiltroAnio] = useState(now.getFullYear());
+  const [exportando, setExportando] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -113,6 +123,51 @@ export default function ReportesPage() {
     toast.success('Lista de compras exportada');
   }
 
+  async function exportSalidasFecha() {
+    setExportando(true);
+    let query = supabase
+      .from('salidas')
+      .select('*, insumo:insumos(nombre, unidad), profile:profiles(nombre, departamento, cargo)')
+      .order('created_at', { ascending: false });
+
+    let nombreArchivo = '';
+    if (filtroTipo === 'rango') {
+      if (!fechaDesde || !fechaHasta) { toast.error('Selecciona rango de fechas'); setExportando(false); return; }
+      query = query.gte('created_at', fechaDesde).lte('created_at', fechaHasta + 'T23:59:59');
+      nombreArchivo = `salidas_${fechaDesde}_${fechaHasta}`;
+    } else if (filtroTipo === 'mes') {
+      const inicio = new Date(filtroAnio, filtroMes, 1).toISOString();
+      const fin = new Date(filtroAnio, filtroMes + 1, 0, 23, 59, 59).toISOString();
+      query = query.gte('created_at', inicio).lte('created_at', fin);
+      nombreArchivo = `salidas_${MESES[filtroMes]}_${filtroAnio}`;
+    } else {
+      const inicio = new Date(filtroAnio, 0, 1).toISOString();
+      const fin = new Date(filtroAnio, 11, 31, 23, 59, 59).toISOString();
+      query = query.gte('created_at', inicio).lte('created_at', fin);
+      nombreArchivo = `salidas_${filtroAnio}`;
+    }
+
+    const { data, error } = await query;
+    setExportando(false);
+    if (error || !data || data.length === 0) { toast.error(error ? 'Error al obtener datos' : 'Sin salidas en ese periodo'); return; }
+
+    exportToExcel(data.map((s) => {
+      const insumo = s.insumo as unknown as { nombre: string; unidad: string };
+      const profile = s.profile as unknown as { nombre: string; departamento: string; cargo: string };
+      return {
+        Fecha: formatDate(s.created_at),
+        Insumo: insumo?.nombre ?? '—',
+        Cantidad: s.cantidad,
+        Unidad: insumo?.unidad ?? '—',
+        'Registrado por': profile?.nombre ?? '—',
+        Departamento: s.departamento,
+        Cargo: s.cargo ?? profile?.cargo ?? '—',
+        Observaciones: s.observaciones ?? '—',
+      };
+    }), nombreArchivo, 'Salidas');
+    toast.success(`${data.length} registros exportados`);
+  }
+
   if (loading) return <PageLoader />;
 
   return (
@@ -188,14 +243,14 @@ export default function ReportesPage() {
         </div>
       </div>
 
-      {/* Exportaciones */}
+      {/* Exportaciones rápidas */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <h3 className="font-semibold text-gray-800 mb-4">Exportar Reportes</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { label: 'Salidas del periodo', desc: 'Historial filtrado por periodo', action: exportSalidas, color: 'blue' },
-            { label: 'Inventario actual', desc: 'Todo el stock con costos y estado', action: exportInventario, color: 'green' },
-            { label: 'Lista de compras', desc: 'Insumos agotados o bajo mínimo', action: exportSinStock, color: 'orange' },
+            { label: 'Salidas del periodo', desc: 'Historial filtrado por periodo', action: exportSalidas },
+            { label: 'Inventario actual', desc: 'Todo el stock con costos y estado', action: exportInventario },
+            { label: 'Lista de compras', desc: 'Insumos agotados o bajo mínimo', action: exportSinStock },
           ].map((exp) => (
             <button
               key={exp.label}
@@ -210,6 +265,93 @@ export default function ReportesPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Reporte de salidas por fecha (admin) */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Calendar size={18} className="text-blue-600" />
+          <h3 className="font-semibold text-gray-800">Reporte de Salidas por Fecha</h3>
+        </div>
+
+        {/* Selector tipo de filtro */}
+        <div className="flex gap-2 mb-4 flex-wrap">
+          {([['mes', 'Por mes'], ['anio', 'Por año'], ['rango', 'Rango de fechas']] as const).map(([val, label]) => (
+            <button
+              key={val}
+              onClick={() => setFiltroTipo(val)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${filtroTipo === val ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Filtros según tipo */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          {filtroTipo === 'mes' && (
+            <>
+              <select
+                value={filtroMes}
+                onChange={(e) => setFiltroMes(Number(e.target.value))}
+                className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+              <select
+                value={filtroAnio}
+                onChange={(e) => setFiltroAnio(Number(e.target.value))}
+                className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </>
+          )}
+          {filtroTipo === 'anio' && (
+            <select
+              value={filtroAnio}
+              onChange={(e) => setFiltroAnio(Number(e.target.value))}
+              className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          )}
+          {filtroTipo === 'rango' && (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Desde:</span>
+                <input
+                  type="date"
+                  value={fechaDesde}
+                  onChange={(e) => setFechaDesde(e.target.value)}
+                  className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Hasta:</span>
+                <input
+                  type="date"
+                  value={fechaHasta}
+                  onChange={(e) => setFechaHasta(e.target.value)}
+                  className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="bg-blue-50 rounded-xl p-3 mb-4 text-xs text-blue-700">
+          El Excel incluirá: Fecha, Insumo, Cantidad, Unidad, Registrado por, Departamento, Cargo, Observaciones.
+        </div>
+
+        <button
+          onClick={exportSalidasFecha}
+          disabled={exportando}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60"
+        >
+          <FileDown size={16} />
+          {exportando ? 'Generando...' : 'Exportar Excel'}
+        </button>
       </div>
     </div>
   );

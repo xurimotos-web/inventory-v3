@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Package, PackagePlus, PackageMinus,
-  BarChart3, Users, AlertTriangle, X, Boxes,
+  BarChart3, Users, AlertTriangle, X, Boxes, Settings,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { to: '/alertas', icon: AlertTriangle, label: 'Alertas Stock', adminOnly: true },
   { to: '/reportes', icon: BarChart3, label: 'Reportes', adminOnly: true },
   { to: '/usuarios', icon: Users, label: 'Usuarios', adminOnly: true },
+  { to: '/configuracion', icon: Settings, label: 'Configuración', adminOnly: true },
 ];
 
 export default function Sidebar({ open, onClose }: SidebarProps) {

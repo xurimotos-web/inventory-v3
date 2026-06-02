@@ -18,10 +18,18 @@ export interface Categoria {
   created_at: string;
 }
 
+export interface Unidad {
+  id: number;
+  nombre: string;
+  created_at: string;
+}
+
 export interface Insumo {
   id: number;
   nombre: string;
   descripcion?: string;
+  referencia?: string;
+  tienda_referencia?: string;
   categoria_id?: number;
   categoria?: Categoria;
   unidad: string;

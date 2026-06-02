@@ -11,6 +11,7 @@ const pageTitles: Record<string, string> = {
   '/alertas': 'Alertas de Stock',
   '/reportes': 'Reportes y Exportaciones',
   '/usuarios': 'Gestión de Usuarios',
+  '/configuracion': 'Configuración',
 };
 
 export default function Layout() {

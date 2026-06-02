@@ -32,11 +32,14 @@ export default function AlertasPage() {
       return {
         Estado: 'AGOTADO',
         Insumo: i.nombre,
+        Referencia: i.referencia ?? '—',
+        'Tienda / Local': i.tienda_referencia ?? '—',
         Categoría: cat?.nombre ?? '—',
         'Stock Actual': 0,
         'Stock Mínimo': i.stock_minimo,
         'A Comprar (mínimo)': i.stock_minimo,
         Unidad: i.unidad,
+        'Precio Unitario': i.costo_unitario,
         'Costo Estimado Reposición': i.stock_minimo * i.costo_unitario,
       };
     });
@@ -48,15 +51,20 @@ export default function AlertasPage() {
     if (insumos.length === 0) { toast.error('No hay alertas activas'); return; }
     const rows = insumos.map((i) => {
       const cat = i.categoria as unknown as { nombre: string };
+      const faltante = Math.max(0, i.stock_minimo - i.stock_actual);
       return {
         Estado: getStockEstado(i) === 'agotado' ? 'AGOTADO' : 'STOCK BAJO',
         Insumo: i.nombre,
+        Referencia: i.referencia ?? '—',
+        'Tienda / Local': i.tienda_referencia ?? '—',
         Categoría: cat?.nombre ?? '—',
         'Stock Actual': i.stock_actual,
         'Stock Mínimo': i.stock_minimo,
+        'Cantidad a Comprar': faltante,
         Unidad: i.unidad,
-        'Costo Unitario': i.costo_unitario,
-        'Valor a Reponer': (i.stock_minimo - i.stock_actual) * i.costo_unitario,
+        'Precio Unitario': i.costo_unitario,
+        'Valor Stock Actual': i.stock_actual * i.costo_unitario,
+        'Valor a Reponer': faltante * i.costo_unitario,
       };
     });
     exportToExcel(rows, `lista_compras_${new Date().toISOString().slice(0, 10)}`, 'Lista de Compras');
