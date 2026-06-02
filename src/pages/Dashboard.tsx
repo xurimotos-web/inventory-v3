@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Package, PackagePlus, PackageMinus, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Package, PackageMinus, AlertTriangle, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Insumo, Salida } from '../types';
 import { getStockEstado } from '../types';
