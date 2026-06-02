@@ -26,6 +26,7 @@ export interface Unidad {
 
 export interface Insumo {
   id: number;
+  codigo?: string;
   nombre: string;
   descripcion?: string;
   referencia?: string;
@@ -50,6 +51,7 @@ export interface Entrada {
   costo_unitario: number;
   proveedor?: string;
   numero_factura?: string;
+  factura_url?: string;
   observaciones?: string;
   usuario_id: string;
   profile?: Profile;
@@ -65,6 +67,8 @@ export interface Salida {
   profile?: Profile;
   departamento: string;
   cargo: string;
+  area?: string;
+  destino?: string;
   observaciones?: string;
   created_at: string;
 }

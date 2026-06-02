@@ -14,7 +14,7 @@ interface SalidaModalProps {
   onSaved: () => void;
 }
 
-const EMPTY = { insumo_id: '', cantidad: '', observaciones: '' };
+const EMPTY = { insumo_id: '', cantidad: '', area: '', destino: '', observaciones: '' };
 
 export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps) {
   const { user, profile } = useAuth();
@@ -58,6 +58,8 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
       usuario_id: user!.id,
       departamento: profile!.departamento,
       cargo: profile!.cargo,
+      area: form.area.trim() || null,
+      destino: form.destino.trim() || null,
       observaciones: form.observaciones.trim() || null,
     });
 
@@ -254,6 +256,22 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
               placeholder="0"
               className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          {/* Área y Destino */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Área</label>
+              <input type="text" value={form.area} onChange={(e) => set('area', e.target.value)}
+                placeholder="Ej: Producción, Cocina"
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Destino</label>
+              <input type="text" value={form.destino} onChange={(e) => set('destino', e.target.value)}
+                placeholder="Ej: Proyecto X, Mantenimiento"
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
           </div>
 
           {/* Observaciones */}

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import Modal from '../../components/shared/Modal';
 import { supabase } from '../../lib/supabase';
 import type { Profile } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { Eye, EyeOff, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface UsuarioModalProps {
@@ -16,10 +18,36 @@ const EMPTY = {
   cargo: '', rol: 'usuario' as 'admin' | 'usuario',
 };
 
+async function adminChangePassword(userId: string, newPassword: string): Promise<string | null> {
+  const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  if (!serviceKey || serviceKey === 'PENDIENTE') return 'Service key no configurada';
+
+  const res = await fetch(`${url}/auth/v1/admin/users/${userId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${serviceKey}`,
+      'apikey': serviceKey,
+    },
+    body: JSON.stringify({ password: newPassword }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    return data.message ?? 'Error al cambiar contraseña';
+  }
+  return null;
+}
+
 export default function UsuarioModal({ open, onClose, onSaved, usuario }: UsuarioModalProps) {
+  const { user: me } = useAuth();
   const [form, setForm] = useState({ ...EMPTY });
+  const [newPassword, setNewPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
   const [saving, setSaving] = useState(false);
   const isEdit = !!usuario;
+  const isSelf = usuario?.id === me?.id;
 
   useEffect(() => {
     if (usuario) {
@@ -34,6 +62,9 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
     } else {
       setForm({ ...EMPTY });
     }
+    setNewPassword('');
+    setShowPass(false);
+    setShowNewPass(false);
   }, [usuario, open]);
 
   function set(field: string, value: string) {
@@ -46,11 +77,11 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
     if (!form.cargo.trim()) { toast.error('El cargo es obligatorio'); return; }
     if (!isEdit && !form.email.trim()) { toast.error('El email es obligatorio'); return; }
     if (!isEdit && form.password.length < 6) { toast.error('La contraseña debe tener al menos 6 caracteres'); return; }
+    if (newPassword && newPassword.length < 6) { toast.error('La nueva contraseña debe tener al menos 6 caracteres'); return; }
 
     setSaving(true);
 
     if (isEdit) {
-      // Solo actualizar perfil
       const { error } = await supabase.from('profiles').update({
         nombre: form.nombre.trim(),
         departamento: form.departamento.trim(),
@@ -59,14 +90,25 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
       }).eq('id', usuario!.id);
 
       if (error) { toast.error('Error al actualizar el usuario'); setSaving(false); return; }
-      toast.success('Usuario actualizado');
+
+      // Cambiar contraseña si se ingresó una
+      if (newPassword) {
+        if (isSelf) {
+          const { error: passError } = await supabase.auth.updateUser({ password: newPassword });
+          if (passError) { toast.error('Perfil guardado, pero error al cambiar contraseña'); setSaving(false); return; }
+        } else {
+          const err = await adminChangePassword(usuario!.id, newPassword);
+          if (err) { toast.error(`Perfil guardado, pero: ${err}`); setSaving(false); return; }
+        }
+        toast.success('Usuario y contraseña actualizados');
+      } else {
+        toast.success('Usuario actualizado');
+      }
     } else {
-      // Crear usuario con Supabase Auth Admin (requiere función edge o service key)
-      // Usamos signUp en el cliente por limitación de la capa gratuita
       const { data, error } = await supabase.auth.signUp({
         email: form.email.trim(),
         password: form.password,
-        options: { data: { nombre: form.nombre.trim() } }
+        options: { data: { nombre: form.nombre.trim() } },
       });
 
       if (error || !data.user) {
@@ -84,12 +126,8 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
         activo: true,
       });
 
-      if (profileError) {
-        toast.error('Error al crear el perfil del usuario');
-        setSaving(false);
-        return;
-      }
-      toast.success('Usuario creado. El usuario debe verificar su email para activar la cuenta.');
+      if (profileError) { toast.error('Error al crear el perfil'); setSaving(false); return; }
+      toast.success('Usuario creado. Debe verificar su email para activar la cuenta.');
     }
 
     onSaved();
@@ -100,40 +138,63 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Editar Usuario' : 'Nuevo Usuario'} size="md">
       <div className="space-y-4">
+
+        {/* Nombre */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Nombre completo *</label>
-          <input type="text" value={form.nombre} onChange={(e) => set('nombre', e.target.value)} placeholder="Ej: Juan Pérez"
+          <input type="text" value={form.nombre} onChange={(e) => set('nombre', e.target.value)}
+            placeholder="Ej: Juan Pérez"
             className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
 
+        {/* Email + contraseña solo al crear */}
         {!isEdit && (
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Correo electrónico *</label>
-              <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="usuario@empresa.com"
+              <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)}
+                placeholder="usuario@empresa.com"
                 className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Contraseña *</label>
-              <input type="password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="Mínimo 6 caracteres"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <div className="relative">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => set('password', e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full pr-10 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
           </>
         )}
 
+        {/* Departamento y cargo */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Departamento *</label>
-            <input type="text" value={form.departamento} onChange={(e) => set('departamento', e.target.value)} placeholder="Ej: Operaciones"
+            <input type="text" value={form.departamento} onChange={(e) => set('departamento', e.target.value)}
+              placeholder="Ej: Operaciones"
               className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Cargo *</label>
-            <input type="text" value={form.cargo} onChange={(e) => set('cargo', e.target.value)} placeholder="Ej: Técnico"
+            <input type="text" value={form.cargo} onChange={(e) => set('cargo', e.target.value)}
+              placeholder="Ej: Técnico"
               className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
 
+        {/* Rol */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Rol de acceso *</label>
           <div className="grid grid-cols-2 gap-3">
@@ -154,6 +215,37 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
           </div>
         </div>
 
+        {/* Cambiar contraseña al editar */}
+        {isEdit && (
+          <div className="border border-dashed border-gray-200 rounded-xl p-4 space-y-2">
+            <div className="flex items-center gap-2 mb-1">
+              <KeyRound size={14} className="text-gray-400" />
+              <p className="text-sm font-medium text-gray-600">Cambiar contraseña</p>
+              <span className="text-xs text-gray-400">(opcional)</span>
+            </div>
+            <div className="relative">
+              <input
+                type={showNewPass ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Dejar en blanco para no cambiar"
+                className="w-full pr-10 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPass(!showNewPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            {newPassword && newPassword.length < 6 && (
+              <p className="text-xs text-red-500">Mínimo 6 caracteres</p>
+            )}
+          </div>
+        )}
+
+        {/* Botones */}
         <div className="flex gap-3 pt-2">
           <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
             Cancelar

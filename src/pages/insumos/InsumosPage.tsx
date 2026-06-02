@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, Eye, ZoomIn } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, Eye, ZoomIn, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Insumo } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import StockBadge from '../../components/shared/StockBadge';
 import InsumoModal from './InsumoModal';
+import ImportInsumosModal from './ImportInsumosModal';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import Modal from '../../components/shared/Modal';
@@ -19,6 +20,7 @@ export default function InsumosPage() {
   const [search, setSearch] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<'todos' | 'ok' | 'bajo' | 'agotado'>('todos');
   const [modalOpen, setModalOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [selected, setSelected] = useState<Insumo | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Insumo | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -56,8 +58,11 @@ export default function InsumosPage() {
   }
 
   const filtered = insumos.filter((i) => {
-    const matchSearch = i.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      (i.descripcion ?? '').toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const matchSearch = i.nombre.toLowerCase().includes(q) ||
+      (i.descripcion ?? '').toLowerCase().includes(q) ||
+      (i.codigo ?? '').toLowerCase().includes(q) ||
+      (i.referencia ?? '').toLowerCase().includes(q);
     if (filtroEstado === 'todos') return matchSearch;
     const estado = i.stock_actual <= 0 ? 'agotado' : i.stock_actual <= i.stock_minimo ? 'bajo' : 'ok';
     return matchSearch && estado === filtroEstado;
@@ -75,7 +80,7 @@ export default function InsumosPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar insumo..."
+            placeholder="Buscar por nombre, código, referencia..."
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -90,13 +95,22 @@ export default function InsumosPage() {
           <option value="agotado">Agotado</option>
         </select>
         {isAdmin && (
-          <button
-            onClick={() => { setSelected(null); setModalOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/30 whitespace-nowrap"
-          >
-            <Plus size={16} />
-            Nuevo Insumo
-          </button>
+          <>
+            <button
+              onClick={() => setImportOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors whitespace-nowrap"
+            >
+              <Upload size={15} />
+              Importar Excel
+            </button>
+            <button
+              onClick={() => { setSelected(null); setModalOpen(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/30 whitespace-nowrap"
+            >
+              <Plus size={16} />
+              Nuevo Insumo
+            </button>
+          </>
         )}
       </div>
 
@@ -155,7 +169,8 @@ export default function InsumosPage() {
                         )}
                         <div>
                           <p className="font-medium text-gray-800">{insumo.nombre}</p>
-                          {insumo.descripcion && <p className="text-xs text-gray-400 truncate max-w-48">{insumo.descripcion}</p>}
+                          {insumo.codigo && <p className="text-xs text-gray-400 font-mono">{insumo.codigo}</p>}
+                          {!insumo.codigo && insumo.descripcion && <p className="text-xs text-gray-400 truncate max-w-48">{insumo.descripcion}</p>}
                         </div>
                       </div>
                     </td>
@@ -248,7 +263,8 @@ export default function InsumosPage() {
         </div>
       </div>
 
-      {/* Modales */}
+      <ImportInsumosModal open={importOpen} onClose={() => setImportOpen(false)} onSaved={load} />
+
       <InsumoModal
         open={modalOpen}
         onClose={() => { setModalOpen(false); setSelected(null); }}

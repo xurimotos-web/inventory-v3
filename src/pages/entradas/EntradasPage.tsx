@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Download, PackagePlus } from 'lucide-react';
+import { Plus, Search, Download, PackagePlus, FileText, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Entrada } from '../../types';
 import { formatCurrency, formatDate, exportToExcel } from '../../lib/exportExcel';
@@ -7,10 +7,14 @@ import EntradaModal from './EntradaModal';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
 
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
 export default function EntradasPage() {
   const [entradas, setEntradas] = useState<Entrada[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filtroMes, setFiltroMes] = useState<number>(-1);
+  const [filtroAnio, setFiltroAnio] = useState<number>(new Date().getFullYear());
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => { load(); }, []);
@@ -48,11 +52,13 @@ export default function EntradasPage() {
 
   const filtered = entradas.filter((e) => {
     const insumo = e.insumo as unknown as { nombre: string };
-    return (
-      (insumo?.nombre ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (e.proveedor ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (e.numero_factura ?? '').toLowerCase().includes(search.toLowerCase())
-    );
+    const q = search.toLowerCase();
+    const matchSearch = (insumo?.nombre ?? '').toLowerCase().includes(q) ||
+      (e.proveedor ?? '').toLowerCase().includes(q) ||
+      (e.numero_factura ?? '').toLowerCase().includes(q);
+    const d = new Date(e.created_at);
+    const matchMes = filtroMes === -1 || (d.getMonth() === filtroMes && d.getFullYear() === filtroAnio);
+    return matchSearch && matchMes;
   });
 
   const totalMes = entradas.filter((e) => {
@@ -84,20 +90,25 @@ export default function EntradasPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-48">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por insumo, proveedor o factura..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
+        {/* Filtro mes */}
+        <select value={filtroMes} onChange={(e) => setFiltroMes(Number(e.target.value))}
+          className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value={-1}>Todos los meses</option>
+          {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+        </select>
+        <select value={filtroAnio} onChange={(e) => setFiltroAnio(Number(e.target.value))}
+          className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          {[new Date().getFullYear(), new Date().getFullYear()-1, new Date().getFullYear()-2].map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
         <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
-          <Download size={15} />
-          Exportar Excel
+          <Download size={15} /> Exportar Excel
         </button>
         <button
           onClick={() => setModalOpen(true)}
@@ -137,7 +148,17 @@ export default function EntradasPage() {
                     </td>
                     <td className="px-5 py-3.5 text-gray-600 hidden md:table-cell">{formatCurrency(entrada.costo_unitario)}</td>
                     <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{entrada.proveedor ?? '—'}</td>
-                    <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{entrada.numero_factura ?? '—'}</td>
+                    <td className="px-5 py-3.5 hidden lg:table-cell">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-600">{entrada.numero_factura ?? '—'}</span>
+                        {entrada.factura_url && (
+                          <a href={entrada.factura_url} target="_blank" rel="noreferrer"
+                            className="text-blue-500 hover:text-blue-700 flex items-center gap-0.5 text-xs" title="Ver factura adjunta">
+                            <FileText size={13} /><ExternalLink size={11} />
+                          </a>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-5 py-3.5 text-gray-600 hidden xl:table-cell">{profile?.nombre ?? '—'}</td>
                   </tr>
                 );

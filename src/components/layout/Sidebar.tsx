@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Package, PackagePlus, PackageMinus,
-  BarChart3, Users, AlertTriangle, X, Boxes, Settings,
+  BarChart3, AlertTriangle, X, Boxes, Settings,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -24,8 +24,6 @@ const navItems: NavItem[] = [
   { to: '/salidas', icon: PackageMinus, label: 'Salidas' },
   { to: '/alertas', icon: AlertTriangle, label: 'Alertas Stock', adminOnly: true },
   { to: '/reportes', icon: BarChart3, label: 'Reportes', adminOnly: true },
-  { to: '/usuarios', icon: Users, label: 'Usuarios', adminOnly: true },
-  { to: '/configuracion', icon: Settings, label: 'Configuración', adminOnly: true },
 ];
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
@@ -35,21 +33,17 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Overlay mobile */}
       {open && (
-        <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" onClick={onClose} />
       )}
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed top-0 left-0 h-full w-64 bg-sidebar-DEFAULT z-30
-        flex flex-col transition-transform duration-300 ease-in-out
-        lg:translate-x-0 lg:static lg:flex
-        ${open ? 'translate-x-0' : '-translate-x-full'}
-      `}
+      <aside
+        className={`
+          fixed top-0 left-0 h-full w-64 z-30
+          flex flex-col transition-transform duration-300 ease-in-out
+          lg:translate-x-0 lg:static lg:flex
+          ${open ? 'translate-x-0' : '-translate-x-full'}
+        `}
         style={{ backgroundColor: '#0f172a' }}
       >
         {/* Logo */}
@@ -68,7 +62,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </button>
         </div>
 
-        {/* Perfil del usuario */}
+        {/* Perfil */}
         <div className="px-5 py-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-blue-600/30 flex items-center justify-center flex-shrink-0">
@@ -109,9 +103,28 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </ul>
         </nav>
 
-        {/* Footer version */}
+        {/* Configuración al fondo — solo admin */}
+        {isAdmin && (
+          <div className="px-3 pb-3 border-t border-white/10 pt-3">
+            <NavLink
+              to="/configuracion"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                ${isActive
+                  ? 'bg-slate-600 text-white'
+                  : 'text-white/50 hover:text-white hover:bg-slate-700/60'
+                }`
+              }
+            >
+              <Settings size={17} />
+              Configuración
+            </NavLink>
+          </div>
+        )}
+
         <div className="px-5 py-3 border-t border-white/10">
-          <p className="text-white/20 text-xs">v3.0.0 — 2024</p>
+          <p className="text-white/20 text-xs">v3.0.0 — 2025</p>
         </div>
       </aside>
     </>

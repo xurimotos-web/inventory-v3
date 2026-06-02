@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Modal from '../../components/shared/Modal';
 import { supabase } from '../../lib/supabase';
 import type { Insumo } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { FileUp, X, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface EntradaModalProps {
@@ -20,18 +21,45 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
   const { user } = useAuth();
   const [form, setForm] = useState({ ...EMPTY });
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [facturaFile, setFacturaFile] = useState<File | null>(null);
+  const [uploadingFactura, setUploadingFactura] = useState(false);
   const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    supabase.from('insumos').select('*').eq('activo', true).order('nombre').then(({ data }) => setInsumos(data ?? []));
+    supabase.from('insumos').select('*, categoria:categorias(nombre)').eq('activo', true).order('nombre')
+      .then(({ data }) => setInsumos(data ?? []));
   }, []);
 
   useEffect(() => {
-    if (open) setForm({ ...EMPTY });
+    if (open) { setForm({ ...EMPTY }); setFacturaFile(null); }
   }, [open]);
 
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handleFacturaFile(file: File) {
+    const allowed = ['application/pdf', 'text/html', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+    const allowedExt = ['.pdf', '.html', '.htm', '.xlsx', '.xls'];
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!allowed.includes(file.type) && !allowedExt.includes(ext)) {
+      toast.error('Solo se permiten PDF, HTML o Excel'); return;
+    }
+    if (file.size > 10 * 1024 * 1024) { toast.error('El archivo no puede superar 10MB'); return; }
+    setFacturaFile(file);
+  }
+
+  async function uploadFactura(): Promise<string | null> {
+    if (!facturaFile) return null;
+    setUploadingFactura(true);
+    const ext = facturaFile.name.split('.').pop();
+    const filename = `facturas/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('facturas').upload(filename, facturaFile, { upsert: true });
+    setUploadingFactura(false);
+    if (error) { toast.error('Error al subir la factura'); return null; }
+    const { data: { publicUrl } } = supabase.storage.from('facturas').getPublicUrl(filename);
+    return publicUrl;
   }
 
   async function handleSave() {
@@ -39,8 +67,8 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
     if (!form.cantidad || Number(form.cantidad) <= 0) { toast.error('La cantidad debe ser mayor a 0'); return; }
 
     setSaving(true);
+    const facturaUrl = await uploadFactura();
 
-    // Registrar entrada
     const { error: entradaError } = await supabase.from('entradas').insert({
       insumo_id: Number(form.insumo_id),
       cantidad: Number(form.cantidad),
@@ -48,16 +76,12 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
       proveedor: form.proveedor.trim() || null,
       numero_factura: form.numero_factura.trim() || null,
       observaciones: form.observaciones.trim() || null,
+      factura_url: facturaUrl,
       usuario_id: user!.id,
     });
 
-    if (entradaError) {
-      toast.error('Error al registrar la entrada');
-      setSaving(false);
-      return;
-    }
+    if (entradaError) { toast.error('Error al registrar la entrada'); setSaving(false); return; }
 
-    // Actualizar stock
     const insumo = insumos.find((i) => i.id === Number(form.insumo_id));
     if (insumo) {
       await supabase.from('insumos').update({
@@ -67,8 +91,7 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
     }
 
     toast.success('Entrada registrada y stock actualizado');
-    onSaved();
-    onClose();
+    onSaved(); onClose();
     setSaving(false);
   }
 
@@ -80,8 +103,7 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
         {/* Insumo */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Insumo *</label>
-          <select
-            value={form.insumo_id}
+          <select value={form.insumo_id}
             onChange={(e) => {
               const insumo = insumos.find(i => i.id === Number(e.target.value));
               set('insumo_id', e.target.value);
@@ -90,47 +112,35 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
             className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
             <option value="">Seleccionar insumo...</option>
-            {insumos.map((i) => (
-              <option key={i.id} value={i.id}>{i.nombre} (stock: {i.stock_actual} {i.unidad})</option>
-            ))}
+            {insumos.map((i) => {
+              const cat = i.categoria as unknown as { nombre: string };
+              return (
+                <option key={i.id} value={i.id}>
+                  {i.codigo ? `[${i.codigo}] ` : ''}{i.nombre}{cat?.nombre ? ` — ${cat.nombre}` : ''} (stock: {i.stock_actual} {i.unidad})
+                </option>
+              );
+            })}
           </select>
         </div>
 
-        {/* Stock info */}
         {selectedInsumo && (
-          <div className="bg-blue-50 rounded-xl p-3 text-sm">
-            <p className="text-blue-700 font-medium">Stock actual: <strong>{selectedInsumo.stock_actual} {selectedInsumo.unidad}</strong></p>
-            <p className="text-blue-600 text-xs mt-0.5">Stock mínimo: {selectedInsumo.stock_minimo} {selectedInsumo.unidad}</p>
+          <div className="bg-green-50 rounded-xl p-3 text-sm">
+            <p className="text-green-700 font-medium">Stock actual: <strong>{selectedInsumo.stock_actual} {selectedInsumo.unidad}</strong></p>
+            <p className="text-green-600 text-xs mt-0.5">Stock mínimo: {selectedInsumo.stock_minimo} {selectedInsumo.unidad}</p>
           </div>
         )}
 
         {/* Cantidad y Costo */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Cantidad *{selectedInsumo ? ` (${selectedInsumo.unidad})` : ''}
-            </label>
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={form.cantidad}
-              onChange={(e) => set('cantidad', e.target.value)}
-              placeholder="0"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Cantidad *{selectedInsumo ? ` (${selectedInsumo.unidad})` : ''}</label>
+            <input type="number" min="0.01" step="0.01" value={form.cantidad} onChange={(e) => set('cantidad', e.target.value)} placeholder="0"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Costo unitario</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.costo_unitario}
-              onChange={(e) => set('costo_unitario', e.target.value)}
-              placeholder="0"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <input type="number" min="0" step="0.01" value={form.costo_unitario} onChange={(e) => set('costo_unitario', e.target.value)} placeholder="0"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
 
@@ -138,44 +148,54 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Proveedor</label>
-            <input
-              type="text"
-              value={form.proveedor}
-              onChange={(e) => set('proveedor', e.target.value)}
-              placeholder="Nombre del proveedor"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <input type="text" value={form.proveedor} onChange={(e) => set('proveedor', e.target.value)} placeholder="Nombre del proveedor"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">N° Factura</label>
-            <input
-              type="text"
-              value={form.numero_factura}
-              onChange={(e) => set('numero_factura', e.target.value)}
-              placeholder="000-001"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <input type="text" value={form.numero_factura} onChange={(e) => set('numero_factura', e.target.value)} placeholder="000-001"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
+        </div>
+
+        {/* Adjuntar factura */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Adjuntar factura (PDF, HTML, Excel)</label>
+          <input ref={fileRef} type="file" accept=".pdf,.html,.htm,.xlsx,.xls" className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleFacturaFile(e.target.files[0])} />
+          {facturaFile ? (
+            <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+              <FileText size={18} className="text-green-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-green-800 truncate">{facturaFile.name}</p>
+                <p className="text-xs text-green-600">{(facturaFile.size / 1024).toFixed(0)} KB</p>
+              </div>
+              <button type="button" onClick={() => setFacturaFile(null)} className="p-1 text-green-500 hover:text-red-600 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => fileRef.current?.click()}
+              className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/30 transition-colors">
+              <FileUp size={16} />
+              Subir factura (opcional) — PDF, HTML, Excel
+            </button>
+          )}
         </div>
 
         {/* Observaciones */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Observaciones</label>
-          <textarea
-            value={form.observaciones}
-            onChange={(e) => set('observaciones', e.target.value)}
-            rows={2}
+          <textarea value={form.observaciones} onChange={(e) => set('observaciones', e.target.value)} rows={2}
             placeholder="Notas adicionales..."
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          />
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
-            Cancelar
-          </button>
-          <button onClick={handleSave} disabled={saving} className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-60">
-            {saving ? 'Guardando...' : 'Registrar Entrada'}
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">Cancelar</button>
+          <button onClick={handleSave} disabled={saving || uploadingFactura}
+            className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-60">
+            {saving || uploadingFactura ? 'Guardando...' : 'Registrar Entrada'}
           </button>
         </div>
       </div>

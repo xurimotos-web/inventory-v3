@@ -8,12 +8,16 @@ import SalidaModal from './SalidaModal';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
 
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
 export default function SalidasPage() {
   const { isAdmin, user } = useAuth();
   const [salidas, setSalidas] = useState<Salida[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filtroDept, setFiltroDept] = useState('todos');
+  const [filtroMes, setFiltroMes] = useState<number>(-1);
+  const [filtroAnio, setFiltroAnio] = useState<number>(new Date().getFullYear());
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => { load(); }, []);
@@ -36,13 +40,16 @@ export default function SalidasPage() {
   function handleExport() {
     if (filtered.length === 0) { toast.error('No hay datos para exportar'); return; }
     const rows = filtered.map((s) => {
-      const insumo = s.insumo as unknown as { nombre: string; unidad: string };
+      const insumo = s.insumo as unknown as { nombre: string; unidad: string; codigo?: string };
       const profile = s.profile as unknown as { nombre: string; departamento: string; cargo: string };
       return {
         Fecha: formatDate(s.created_at),
+        Código: insumo?.codigo ?? '—',
         Insumo: insumo?.nombre ?? '—',
         Cantidad: s.cantidad,
         Unidad: insumo?.unidad ?? '—',
+        Área: s.area ?? '—',
+        Destino: s.destino ?? '—',
         Usuario: profile?.nombre ?? '—',
         Departamento: s.departamento,
         Cargo: s.cargo,
@@ -58,12 +65,17 @@ export default function SalidasPage() {
   const filtered = salidas.filter((s) => {
     const insumo = s.insumo as unknown as { nombre: string };
     const profile = s.profile as unknown as { nombre: string };
+    const q = search.toLowerCase();
     const matchSearch =
-      (insumo?.nombre ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (profile?.nombre ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      s.departamento.toLowerCase().includes(search.toLowerCase());
+      (insumo?.nombre ?? '').toLowerCase().includes(q) ||
+      (profile?.nombre ?? '').toLowerCase().includes(q) ||
+      s.departamento.toLowerCase().includes(q) ||
+      (s.area ?? '').toLowerCase().includes(q) ||
+      (s.destino ?? '').toLowerCase().includes(q);
     const matchDept = filtroDept === 'todos' || s.departamento === filtroDept;
-    return matchSearch && matchDept;
+    const d = new Date(s.created_at);
+    const matchMes = filtroMes === -1 || (d.getMonth() === filtroMes && d.getFullYear() === filtroAnio);
+    return matchSearch && matchDept && matchMes;
   });
 
   if (loading) return <PageLoader />;
@@ -96,16 +108,20 @@ export default function SalidasPage() {
           />
         </div>
         {isAdmin && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Filter size={14} className="text-gray-400" />
-            <select
-              value={filtroDept}
-              onChange={(e) => setFiltroDept(e.target.value)}
-              className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {departamentos.map((d) => (
-                <option key={d} value={d}>{d === 'todos' ? 'Todos los depto.' : d}</option>
-              ))}
+            <select value={filtroDept} onChange={(e) => setFiltroDept(e.target.value)}
+              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {departamentos.map((d) => <option key={d} value={d}>{d === 'todos' ? 'Todos los depto.' : d}</option>)}
+            </select>
+            <select value={filtroMes} onChange={(e) => setFiltroMes(Number(e.target.value))}
+              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value={-1}>Todos los meses</option>
+              {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+            </select>
+            <select value={filtroAnio} onChange={(e) => setFiltroAnio(Number(e.target.value))}
+              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {[new Date().getFullYear(), new Date().getFullYear()-1, new Date().getFullYear()-2].map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
         )}
