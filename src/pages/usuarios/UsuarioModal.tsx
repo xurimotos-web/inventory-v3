@@ -105,20 +105,34 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
         toast.success('Usuario actualizado');
       }
     } else {
-      const { data, error } = await supabase.auth.signUp({
-        email: form.email.trim(),
-        password: form.password,
-        options: { data: { nombre: form.nombre.trim() } },
+      // Crear usuario via Admin API — sin email de verificación, activo de inmediato
+      const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+
+      const res = await fetch(`${url}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceKey}`,
+          'apikey': serviceKey,
+        },
+        body: JSON.stringify({
+          email: form.email.trim(),
+          password: form.password,
+          email_confirm: true,
+          user_metadata: { nombre: form.nombre.trim() },
+        }),
       });
 
-      if (error || !data.user) {
-        toast.error(error?.message ?? 'Error al crear el usuario');
+      const authData = await res.json();
+      if (!res.ok || !authData.id) {
+        toast.error(authData.message ?? 'Error al crear el usuario');
         setSaving(false);
         return;
       }
 
       const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
+        id: authData.id,
         nombre: form.nombre.trim(),
         departamento: form.departamento.trim(),
         cargo: form.cargo.trim(),
@@ -127,7 +141,7 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
       });
 
       if (profileError) { toast.error('Error al crear el perfil'); setSaving(false); return; }
-      toast.success('Usuario creado. Debe verificar su email para activar la cuenta.');
+      toast.success('Usuario creado. Puede ingresar de inmediato.');
     }
 
     onSaved();
