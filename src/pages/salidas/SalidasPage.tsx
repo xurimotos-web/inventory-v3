@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Download, PackageMinus, Filter, User } from 'lucide-react';
+import { Plus, Search, Download, PackageMinus, Filter, User, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Salida } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -20,7 +20,7 @@ export default function SalidasPage() {
   const [filtroAnio, setFiltroAnio] = useState<number>(new Date().getFullYear());
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (user) load(); }, [isAdmin, user?.id]);
 
   async function load() {
     let query = supabase
@@ -82,8 +82,18 @@ export default function SalidasPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Banner usuario */}
-      {!isAdmin && (
+      {/* Banner admin */}
+      {isAdmin ? (
+        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
+          <ShieldCheck className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+          <div>
+            <p className="text-amber-800 font-semibold text-sm">Vista de Administrador</p>
+            <p className="text-amber-600 text-xs mt-0.5">
+              Estás viendo las salidas registradas por todos los usuarios. Usa los filtros de departamento, mes y año para organizar la información.
+            </p>
+          </div>
+        </div>
+      ) : (
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
           <PackageMinus className="text-blue-600 flex-shrink-0 mt-0.5" size={20} />
           <div>
