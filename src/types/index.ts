@@ -69,6 +69,7 @@ export interface Salida {
   cargo: string;
   area?: string;
   destino?: string;
+  entregado_a?: string;
   observaciones?: string;
   created_at: string;
 }

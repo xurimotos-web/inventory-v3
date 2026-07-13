@@ -5,7 +5,7 @@ import type { Insumo } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import StockBadge from '../../components/shared/StockBadge';
 import ImageLightbox from '../../components/shared/ImageLightbox';
-import { Package, ZoomIn, CheckCircle, User, Building2, Briefcase } from 'lucide-react';
+import { Package, ZoomIn, CheckCircle, User, Building2, Briefcase, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface SalidaModalProps {
@@ -14,7 +14,7 @@ interface SalidaModalProps {
   onSaved: () => void;
 }
 
-const EMPTY = { insumo_id: '', cantidad: '', area: '', destino: '', observaciones: '' };
+const EMPTY = { insumo_id: '', cantidad: '', entregado_a: '', area: '', destino: '', observaciones: '' };
 
 export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps) {
   const { user, profile } = useAuth();
@@ -58,6 +58,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
       usuario_id: user!.id,
       departamento: profile!.departamento,
       cargo: profile!.cargo,
+      entregado_a: form.entregado_a.trim() || null,
       area: form.area.trim() || null,
       destino: form.destino.trim() || null,
       observaciones: form.observaciones.trim() || null,
@@ -127,6 +128,13 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
                 <span className="font-medium text-gray-700">Cargo:</span>
                 <span>{profile?.cargo}</span>
               </div>
+              {form.entregado_a && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <UserCheck size={14} className="text-green-500 flex-shrink-0" />
+                  <span className="font-medium text-gray-700">Entregado a:</span>
+                  <span>{form.entregado_a}</span>
+                </div>
+              )}
             </div>
 
             {form.observaciones && (
@@ -254,6 +262,20 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
               value={form.cantidad}
               onChange={(e) => set('cantidad', e.target.value)}
               placeholder="0"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Entregado a */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <span className="flex items-center gap-1.5"><UserCheck size={14} className="text-blue-500" /> Entregado a (persona que recibe)</span>
+            </label>
+            <input
+              type="text"
+              value={form.entregado_a}
+              onChange={(e) => set('entregado_a', e.target.value)}
+              placeholder="Nombre de quien recibe el insumo"
               className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

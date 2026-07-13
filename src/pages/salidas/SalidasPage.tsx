@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Download, PackageMinus, Filter, User, ShieldCheck } from 'lucide-react';
+import { Plus, Search, Download, PackageMinus, Filter, User, ShieldCheck, Trash2, UserCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Salida } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate, exportToExcel } from '../../lib/exportExcel';
 import SalidaModal from './SalidaModal';
+import DeleteSalidaModal from './DeleteSalidaModal';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -19,6 +20,9 @@ export default function SalidasPage() {
   const [filtroMes, setFiltroMes] = useState<number>(-1);
   const [filtroAnio, setFiltroAnio] = useState<number>(new Date().getFullYear());
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [toDelete, setToDelete] = useState<Salida[]>([]);
 
   useEffect(() => { if (user) load(); }, [isAdmin, user?.id]);
 
@@ -34,6 +38,7 @@ export default function SalidasPage() {
 
     const { data } = await query;
     setSalidas(data ?? []);
+    setSelectedIds(new Set());
     setLoading(false);
   }
 
@@ -48,6 +53,7 @@ export default function SalidasPage() {
         Insumo: insumo?.nombre ?? '—',
         Cantidad: s.cantidad,
         Unidad: insumo?.unidad ?? '—',
+        'Entregado a': s.entregado_a ?? '—',
         Área: s.area ?? '—',
         Destino: s.destino ?? '—',
         Usuario: profile?.nombre ?? '—',
@@ -58,6 +64,39 @@ export default function SalidasPage() {
     });
     exportToExcel(rows, `salidas_${new Date().toISOString().slice(0, 10)}`, 'Salidas');
     toast.success('Archivo Excel descargado');
+  }
+
+  function openDeleteSelected() {
+    const toDeleteList = filtered.filter((s) => selectedIds.has(s.id));
+    if (toDeleteList.length === 0) return;
+    setToDelete(toDeleteList);
+    setDeleteModalOpen(true);
+  }
+
+  function openDeleteOne(salida: Salida) {
+    setToDelete([salida]);
+    setDeleteModalOpen(true);
+  }
+
+  function handleDeleted() {
+    setSelectedIds(new Set());
+    load();
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((s) => s.id)));
+    }
+  }
+
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   }
 
   const departamentos = ['todos', ...Array.from(new Set(salidas.map((s) => s.departamento).filter(Boolean)))];
@@ -71,25 +110,31 @@ export default function SalidasPage() {
       (profile?.nombre ?? '').toLowerCase().includes(q) ||
       s.departamento.toLowerCase().includes(q) ||
       (s.area ?? '').toLowerCase().includes(q) ||
-      (s.destino ?? '').toLowerCase().includes(q);
+      (s.destino ?? '').toLowerCase().includes(q) ||
+      (s.entregado_a ?? '').toLowerCase().includes(q);
     const matchDept = filtroDept === 'todos' || s.departamento === filtroDept;
     const d = new Date(s.created_at);
     const matchMes = filtroMes === -1 || (d.getMonth() === filtroMes && d.getFullYear() === filtroAnio);
     return matchSearch && matchDept && matchMes;
   });
 
+  const allSelected = filtered.length > 0 && selectedIds.size === filtered.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < filtered.length;
+  const adminColSpan = 9;
+  const userColSpan = 6;
+
   if (loading) return <PageLoader />;
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Banner admin */}
+      {/* Banner */}
       {isAdmin ? (
         <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
           <ShieldCheck className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
           <div>
             <p className="text-amber-800 font-semibold text-sm">Vista de Administrador</p>
             <p className="text-amber-600 text-xs mt-0.5">
-              Estás viendo las salidas registradas por todos los usuarios. Usa los filtros de departamento, mes y año para organizar la información.
+              Estás viendo las salidas registradas por todos los usuarios. Usa los filtros para organizar la información. Solo tú puedes eliminar registros.
             </p>
           </div>
         </div>
@@ -105,6 +150,29 @@ export default function SalidasPage() {
         </div>
       )}
 
+      {/* Barra de eliminación masiva (solo admin con selección activa) */}
+      {isAdmin && selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+          <Trash2 size={16} className="text-red-500 flex-shrink-0" />
+          <span className="text-red-700 text-sm font-medium flex-1">
+            {selectedIds.size} registro(s) seleccionado(s)
+          </span>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={openDeleteSelected}
+            className="flex items-center gap-1.5 text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors font-medium"
+          >
+            <Trash2 size={13} />
+            Eliminar seleccionados
+          </button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -113,7 +181,7 @@ export default function SalidasPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por insumo, usuario o departamento..."
+            placeholder="Buscar por insumo, usuario, departamento o entregado a..."
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -154,26 +222,62 @@ export default function SalidasPage() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-50 flex items-center justify-between">
           <p className="text-sm text-gray-500"><strong className="text-gray-800">{filtered.length}</strong> registros</p>
+          {isAdmin && filtered.length > 0 && (
+            <button
+              onClick={toggleSelectAll}
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+            >
+              {allSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
+            </button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50">
+                {isAdmin && (
+                  <th className="px-4 py-3.5 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                      onChange={toggleSelectAll}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </th>
+                )}
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Fecha</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Insumo</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Cantidad</th>
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Entregado a</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Registrado por</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden lg:table-cell">Departamento</th>
-                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden xl:table-cell">Cargo</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden xl:table-cell">Observaciones</th>
+                {isAdmin && (
+                  <th className="px-4 py-3.5 w-10"></th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((salida) => {
                 const insumo = salida.insumo as unknown as { nombre: string; unidad: string; imagen_url?: string };
                 const profile = salida.profile as unknown as { nombre: string; departamento: string; cargo: string };
+                const isSelected = selectedIds.has(salida.id);
                 return (
-                  <tr key={salida.id} className="hover:bg-blue-50/20 transition-colors">
+                  <tr
+                    key={salida.id}
+                    className={`hover:bg-blue-50/20 transition-colors ${isSelected ? 'bg-red-50/40' : ''}`}
+                  >
+                    {isAdmin && (
+                      <td className="px-4 py-3.5">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(salida.id)}
+                          className="rounded border-gray-300 text-red-500 focus:ring-red-400 cursor-pointer"
+                        />
+                      </td>
+                    )}
                     <td className="px-5 py-3.5 text-gray-500 text-xs whitespace-nowrap">{formatDate(salida.created_at)}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
@@ -192,6 +296,16 @@ export default function SalidasPage() {
                       <span className="text-gray-400 text-xs ml-1">{insumo?.unidad}</span>
                     </td>
                     <td className="px-5 py-3.5">
+                      {salida.entregado_a ? (
+                        <div className="flex items-center gap-1.5">
+                          <UserCheck size={13} className="text-green-500 flex-shrink-0" />
+                          <span className="text-gray-700 text-sm">{salida.entregado_a}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                           {profile?.nombre ? (
@@ -207,14 +321,24 @@ export default function SalidasPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{salida.departamento}</td>
-                    <td className="px-5 py-3.5 text-gray-600 hidden xl:table-cell">{salida.cargo}</td>
                     <td className="px-5 py-3.5 text-gray-500 text-xs hidden xl:table-cell max-w-40 truncate">{salida.observaciones ?? '—'}</td>
+                    {isAdmin && (
+                      <td className="px-4 py-3.5">
+                        <button
+                          onClick={() => openDeleteOne(salida)}
+                          title="Eliminar este registro"
+                          className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-14 text-center">
+                  <td colSpan={isAdmin ? adminColSpan : userColSpan} className="px-5 py-14 text-center">
                     <PackageMinus size={32} className="mx-auto text-gray-200 mb-3" />
                     <p className="text-gray-400 text-sm">No hay salidas registradas</p>
                     <button onClick={() => setModalOpen(true)} className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
@@ -229,6 +353,12 @@ export default function SalidasPage() {
       </div>
 
       <SalidaModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={load} />
+      <DeleteSalidaModal
+        open={deleteModalOpen}
+        salidas={toDelete}
+        onClose={() => { setDeleteModalOpen(false); setToDelete([]); }}
+        onDeleted={handleDeleted}
+      />
     </div>
   );
 }
