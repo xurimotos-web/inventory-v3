@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, MapPin, Compass, Users2, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, MapPin, Navigation, UserPlus, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Categoria, Unidad, Profile, Area, Destino, Colaborador } from '../../types';
 import ImportColaboradoresModal from './ImportColaboradoresModal';
@@ -19,8 +19,8 @@ export default function ConfiguracionPage() {
     { id: 'unidades', label: 'Unidades', icon: Ruler },
     { id: 'usuarios', label: 'Usuarios', icon: Users },
     { id: 'areas', label: 'Áreas', icon: MapPin },
-    { id: 'destinos', label: 'Destinos', icon: Compass },
-    { id: 'colaboradores', label: 'Colaboradores', icon: Users2 },
+    { id: 'destinos', label: 'Destinos', icon: Navigation },
+    { id: 'colaboradores', label: 'Colaboradores', icon: UserPlus },
   ];
 
   return (
@@ -528,13 +528,13 @@ function DestinosPanel() {
       )}
 
       {loading ? <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div> : destinos.length === 0 ? (
-        <div className="py-10 text-center"><Compass size={28} className="mx-auto text-gray-200 mb-2" /><p className="text-gray-400 text-sm">No hay destinos aún</p></div>
+        <div className="py-10 text-center"><Navigation size={28} className="mx-auto text-gray-200 mb-2" /><p className="text-gray-400 text-sm">No hay destinos aún</p></div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
           {destinos.map((d) => (
             <div key={d.id} className="flex items-center justify-between gap-2 px-3 py-2.5 border border-gray-100 rounded-xl hover:border-blue-100 hover:bg-blue-50/20 transition-colors group">
               <div className="flex items-center gap-2 min-w-0">
-                <Compass size={12} className="text-gray-300 flex-shrink-0" />
+                <Navigation size={12} className="text-gray-300 flex-shrink-0" />
                 <span className="text-sm text-gray-700 font-medium truncate">{d.nombre}</span>
               </div>
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -642,7 +642,7 @@ function ColaboradoresPanel() {
         <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div>
       ) : colaboradores.length === 0 ? (
         <div className="py-10 text-center">
-          <Users2 size={28} className="mx-auto text-gray-200 mb-2" />
+          <UserPlus size={28} className="mx-auto text-gray-200 mb-2" />
           <p className="text-gray-400 text-sm">No hay colaboradores registrados</p>
           <p className="text-gray-300 text-xs mt-1">Agrégalos uno por uno o importa desde Excel</p>
         </div>
