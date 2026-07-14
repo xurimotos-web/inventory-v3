@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, Upload, AlertTriangle, Package } from 'lucide-react';
+import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, Upload, Package } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Categoria, Unidad, Profile, Area, Destino, Colaborador } from '../../types';
 import ImportColaboradoresModal from './ImportColaboradoresModal';
