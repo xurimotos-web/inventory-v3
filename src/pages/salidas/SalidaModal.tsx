@@ -65,7 +65,8 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
     });
 
     if (error) {
-      toast.error('Error al registrar la salida');
+      console.error('Error al registrar salida:', error);
+      toast.error(`Error al registrar la salida: ${error.message}`);
       setSaving(false);
       return;
     }
