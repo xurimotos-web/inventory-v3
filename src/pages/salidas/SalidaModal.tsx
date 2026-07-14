@@ -20,6 +20,9 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
   const { user, profile } = useAuth();
   const [form, setForm] = useState({ ...EMPTY });
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [colaboradores, setColaboradores] = useState<{ id: string; nombre: string }[]>([]);
+  const [areas, setAreas] = useState<{ id: number; nombre: string }[]>([]);
+  const [destinos, setDestinos] = useState<{ id: number; nombre: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -27,6 +30,12 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
   useEffect(() => {
     supabase.from('insumos').select('*').eq('activo', true).gt('stock_actual', 0).order('nombre')
       .then(({ data }) => setInsumos(data ?? []));
+    supabase.from('profiles').select('id, nombre').eq('activo', true).order('nombre')
+      .then(({ data }) => setColaboradores(data ?? []));
+    supabase.from('areas').select('id, nombre').order('nombre')
+      .then(({ data }) => setAreas(data ?? []));
+    supabase.from('destinos').select('id, nombre').order('nombre')
+      .then(({ data }) => setDestinos(data ?? []));
   }, [open]);
 
   useEffect(() => {
@@ -58,9 +67,9 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
       usuario_id: user!.id,
       departamento: profile!.departamento,
       cargo: profile!.cargo,
-      entregado_a: form.entregado_a.trim() || null,
-      area: form.area.trim() || null,
-      destino: form.destino.trim() || null,
+      entregado_a: form.entregado_a || null,
+      area: form.area || null,
+      destino: form.destino || null,
       observaciones: form.observaciones.trim() || null,
     });
 
@@ -84,7 +93,6 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
   const selectedInsumo = insumos.find((i) => i.id === Number(form.insumo_id));
   const nuevoCantidad = selectedInsumo ? selectedInsumo.stock_actual - Number(form.cantidad || 0) : null;
 
-  // Pantalla de confirmación después de guardar
   if (saved && selectedInsumo) {
     return (
       <Modal open={open} onClose={onClose} title="Salida Registrada" size="md">
@@ -97,7 +105,6 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
             <p className="text-gray-500 text-sm mt-1">El movimiento quedó guardado correctamente</p>
           </div>
 
-          {/* Resumen del movimiento */}
           <div className="w-full bg-gray-50 rounded-2xl p-4 text-left space-y-3">
             <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
               {selectedInsumo.imagen_url ? (
@@ -267,33 +274,61 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
             />
           </div>
 
-          {/* Entregado a */}
+          {/* Entregado a — dropdown de colaboradores */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              <span className="flex items-center gap-1.5"><UserCheck size={14} className="text-blue-500" /> Entregado a (persona que recibe)</span>
+              <span className="flex items-center gap-1.5">
+                <UserCheck size={14} className="text-blue-500" /> Entregado a (persona que recibe)
+              </span>
             </label>
-            <input
-              type="text"
+            <select
               value={form.entregado_a}
               onChange={(e) => set('entregado_a', e.target.value)}
-              placeholder="Nombre de quien recibe el insumo"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="">Seleccionar colaborador...</option>
+              {colaboradores.map((c) => (
+                <option key={c.id} value={c.nombre}>{c.nombre}</option>
+              ))}
+            </select>
+            {colaboradores.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">No hay colaboradores registrados. Ve a Configuración &gt; Usuarios.</p>
+            )}
           </div>
 
-          {/* Área y Destino */}
+          {/* Área y Destino — dropdowns */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Área</label>
-              <input type="text" value={form.area} onChange={(e) => set('area', e.target.value)}
-                placeholder="Ej: Producción, Cocina"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <select
+                value={form.area}
+                onChange={(e) => set('area', e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">Seleccionar área...</option>
+                {areas.map((a) => (
+                  <option key={a.id} value={a.nombre}>{a.nombre}</option>
+                ))}
+              </select>
+              {areas.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">Sin áreas. Ve a Configuración &gt; Áreas.</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Destino</label>
-              <input type="text" value={form.destino} onChange={(e) => set('destino', e.target.value)}
-                placeholder="Ej: Proyecto X, Mantenimiento"
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <select
+                value={form.destino}
+                onChange={(e) => set('destino', e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">Seleccionar destino...</option>
+                {destinos.map((d) => (
+                  <option key={d.id} value={d.nombre}>{d.nombre}</option>
+                ))}
+              </select>
+              {destinos.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">Sin destinos. Ve a Configuración &gt; Destinos.</p>
+              )}
             </div>
           </div>
 

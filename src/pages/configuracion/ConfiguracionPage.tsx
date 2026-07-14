@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX } from 'lucide-react';
+import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, MapPin, Compass } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import type { Categoria, Unidad, Profile } from '../../types';
+import type { Categoria, Unidad, Profile, Area, Destino } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import UsuarioModal from '../usuarios/UsuarioModal';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
 import { formatDate } from '../../lib/exportExcel';
 import toast from 'react-hot-toast';
 
-type Tab = 'categorias' | 'unidades' | 'usuarios';
+type Tab = 'categorias' | 'unidades' | 'usuarios' | 'areas' | 'destinos';
 
 export default function ConfiguracionPage() {
   const [tab, setTab] = useState<Tab>('categorias');
@@ -17,6 +17,8 @@ export default function ConfiguracionPage() {
     { id: 'categorias', label: 'Categorías', icon: Tag },
     { id: 'unidades', label: 'Unidades', icon: Ruler },
     { id: 'usuarios', label: 'Usuarios', icon: Users },
+    { id: 'areas', label: 'Áreas', icon: MapPin },
+    { id: 'destinos', label: 'Destinos', icon: Compass },
   ];
 
   return (
@@ -39,6 +41,8 @@ export default function ConfiguracionPage() {
           {tab === 'categorias' && <CategoriasPanel />}
           {tab === 'unidades' && <UnidadesPanel />}
           {tab === 'usuarios' && <UsuariosPanel />}
+          {tab === 'areas' && <AreasPanel />}
+          {tab === 'destinos' && <DestinosPanel />}
         </div>
       </div>
     </div>
@@ -366,6 +370,178 @@ function UsuariosPanel() {
         confirmLabel={toggleTarget?.activo ? 'Desactivar' : 'Activar'}
         loading={toggling}
       />
+    </div>
+  );
+}
+
+/* ───────── ÁREAS ───────── */
+function AreasPanel() {
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [nombre, setNombre] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    const { data } = await supabase.from('areas').select('*').order('nombre');
+    setAreas(data ?? []); setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function startNew() { setEditId(null); setNombre(''); setShowForm(true); }
+  function startEdit(a: Area) { setEditId(a.id); setNombre(a.nombre); setShowForm(true); }
+  function cancel() { setShowForm(false); setEditId(null); setNombre(''); }
+
+  async function handleSave() {
+    if (!nombre.trim()) { toast.error('El nombre es obligatorio'); return; }
+    setSaving(true);
+    const { error } = editId
+      ? await supabase.from('areas').update({ nombre: nombre.trim() }).eq('id', editId)
+      : await supabase.from('areas').insert({ nombre: nombre.trim() });
+    setSaving(false);
+    if (error) { toast.error(error.code === '23505' ? 'Esa área ya existe' : 'Error al guardar'); return; }
+    toast.success(editId ? 'Área actualizada' : 'Área creada');
+    cancel(); load();
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('¿Eliminar esta área?')) return;
+    const { error } = await supabase.from('areas').delete().eq('id', id);
+    if (error) { toast.error('Error al eliminar'); return; }
+    toast.success('Área eliminada'); load();
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-gray-800">Áreas</p>
+          <p className="text-xs text-gray-400 mt-0.5">Áreas disponibles al registrar salidas</p>
+        </div>
+        <button onClick={startNew} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
+          <Plus size={15} /> Nueva área
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
+          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
+            placeholder="Ej: Producción, Cocina, Bodega..."
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSave()} />
+          <div className="flex gap-2">
+            <button onClick={cancel} className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"><X size={14} /> Cancelar</button>
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60"><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div> : areas.length === 0 ? (
+        <div className="py-10 text-center"><MapPin size={28} className="mx-auto text-gray-200 mb-2" /><p className="text-gray-400 text-sm">No hay áreas aún</p></div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          {areas.map((a) => (
+            <div key={a.id} className="flex items-center justify-between gap-2 px-3 py-2.5 border border-gray-100 rounded-xl hover:border-blue-100 hover:bg-blue-50/20 transition-colors group">
+              <div className="flex items-center gap-2 min-w-0">
+                <MapPin size={12} className="text-gray-300 flex-shrink-0" />
+                <span className="text-sm text-gray-700 font-medium truncate">{a.nombre}</span>
+              </div>
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <button onClick={() => startEdit(a)} className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"><Pencil size={12} /></button>
+                <button onClick={() => handleDelete(a.id)} className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"><Trash2 size={12} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───────── DESTINOS ───────── */
+function DestinosPanel() {
+  const [destinos, setDestinos] = useState<Destino[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [nombre, setNombre] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    const { data } = await supabase.from('destinos').select('*').order('nombre');
+    setDestinos(data ?? []); setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function startNew() { setEditId(null); setNombre(''); setShowForm(true); }
+  function startEdit(d: Destino) { setEditId(d.id); setNombre(d.nombre); setShowForm(true); }
+  function cancel() { setShowForm(false); setEditId(null); setNombre(''); }
+
+  async function handleSave() {
+    if (!nombre.trim()) { toast.error('El nombre es obligatorio'); return; }
+    setSaving(true);
+    const { error } = editId
+      ? await supabase.from('destinos').update({ nombre: nombre.trim() }).eq('id', editId)
+      : await supabase.from('destinos').insert({ nombre: nombre.trim() });
+    setSaving(false);
+    if (error) { toast.error(error.code === '23505' ? 'Ese destino ya existe' : 'Error al guardar'); return; }
+    toast.success(editId ? 'Destino actualizado' : 'Destino creado');
+    cancel(); load();
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('¿Eliminar este destino?')) return;
+    const { error } = await supabase.from('destinos').delete().eq('id', id);
+    if (error) { toast.error('Error al eliminar'); return; }
+    toast.success('Destino eliminado'); load();
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-gray-800">Destinos</p>
+          <p className="text-xs text-gray-400 mt-0.5">Destinos disponibles al registrar salidas</p>
+        </div>
+        <button onClick={startNew} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
+          <Plus size={15} /> Nuevo destino
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
+          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
+            placeholder="Ej: Proyecto X, Mantenimiento, Ventas..."
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSave()} />
+          <div className="flex gap-2">
+            <button onClick={cancel} className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"><X size={14} /> Cancelar</button>
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60"><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div> : destinos.length === 0 ? (
+        <div className="py-10 text-center"><Compass size={28} className="mx-auto text-gray-200 mb-2" /><p className="text-gray-400 text-sm">No hay destinos aún</p></div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          {destinos.map((d) => (
+            <div key={d.id} className="flex items-center justify-between gap-2 px-3 py-2.5 border border-gray-100 rounded-xl hover:border-blue-100 hover:bg-blue-50/20 transition-colors group">
+              <div className="flex items-center gap-2 min-w-0">
+                <Compass size={12} className="text-gray-300 flex-shrink-0" />
+                <span className="text-sm text-gray-700 font-medium truncate">{d.nombre}</span>
+              </div>
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <button onClick={() => startEdit(d)} className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"><Pencil size={12} /></button>
+                <button onClick={() => handleDelete(d.id)} className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"><Trash2 size={12} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

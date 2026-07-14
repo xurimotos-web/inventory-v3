@@ -24,6 +24,18 @@ export interface Unidad {
   created_at: string;
 }
 
+export interface Area {
+  id: number;
+  nombre: string;
+  created_at: string;
+}
+
+export interface Destino {
+  id: number;
+  nombre: string;
+  created_at: string;
+}
+
 export interface Insumo {
   id: number;
   codigo?: string;
