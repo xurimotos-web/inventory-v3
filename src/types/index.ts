@@ -24,6 +24,15 @@ export interface Unidad {
   created_at: string;
 }
 
+export interface Colaborador {
+  id: number;
+  nombre: string;
+  area?: string;
+  cargo?: string;
+  activo: boolean;
+  created_at: string;
+}
+
 export interface Area {
   id: number;
   nombre: string;

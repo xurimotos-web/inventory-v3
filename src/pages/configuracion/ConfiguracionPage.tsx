@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, MapPin, Compass } from 'lucide-react';
+import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, MapPin, Compass, Users2, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import type { Categoria, Unidad, Profile, Area, Destino } from '../../types';
+import type { Categoria, Unidad, Profile, Area, Destino, Colaborador } from '../../types';
+import ImportColaboradoresModal from './ImportColaboradoresModal';
 import { useAuth } from '../../context/AuthContext';
 import UsuarioModal from '../usuarios/UsuarioModal';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
 import { formatDate } from '../../lib/exportExcel';
 import toast from 'react-hot-toast';
 
-type Tab = 'categorias' | 'unidades' | 'usuarios' | 'areas' | 'destinos';
+type Tab = 'categorias' | 'unidades' | 'usuarios' | 'areas' | 'destinos' | 'colaboradores';
 
 export default function ConfiguracionPage() {
   const [tab, setTab] = useState<Tab>('categorias');
@@ -19,6 +20,7 @@ export default function ConfiguracionPage() {
     { id: 'usuarios', label: 'Usuarios', icon: Users },
     { id: 'areas', label: 'Áreas', icon: MapPin },
     { id: 'destinos', label: 'Destinos', icon: Compass },
+    { id: 'colaboradores', label: 'Colaboradores', icon: Users2 },
   ];
 
   return (
@@ -43,6 +45,7 @@ export default function ConfiguracionPage() {
           {tab === 'usuarios' && <UsuariosPanel />}
           {tab === 'areas' && <AreasPanel />}
           {tab === 'destinos' && <DestinosPanel />}
+          {tab === 'colaboradores' && <ColaboradoresPanel />}
         </div>
       </div>
     </div>
@@ -542,6 +545,162 @@ function DestinosPanel() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ───────── COLABORADORES ───────── */
+function ColaboradoresPanel() {
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editTarget, setEditTarget] = useState<Colaborador | null>(null);
+  const [nombre, setNombre] = useState('');
+  const [area, setArea] = useState('');
+  const [cargo, setCargo] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+
+  async function load() {
+    const { data } = await supabase.from('colaboradores').select('*').order('nombre');
+    setColaboradores(data ?? []); setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function startNew() { setEditTarget(null); setNombre(''); setArea(''); setCargo(''); setShowForm(true); }
+  function startEdit(c: Colaborador) { setEditTarget(c); setNombre(c.nombre); setArea(c.area ?? ''); setCargo(c.cargo ?? ''); setShowForm(true); }
+  function cancel() { setShowForm(false); setEditTarget(null); setNombre(''); setArea(''); setCargo(''); }
+
+  async function handleSave() {
+    if (!nombre.trim()) { toast.error('El nombre es obligatorio'); return; }
+    setSaving(true);
+    const payload = { nombre: nombre.trim(), area: area.trim() || null, cargo: cargo.trim() || null };
+    const { error } = editTarget
+      ? await supabase.from('colaboradores').update(payload).eq('id', editTarget.id)
+      : await supabase.from('colaboradores').insert({ ...payload, activo: true });
+    setSaving(false);
+    if (error) { toast.error('Error al guardar'); return; }
+    toast.success(editTarget ? 'Colaborador actualizado' : 'Colaborador creado');
+    cancel(); load();
+  }
+
+  async function handleToggle(c: Colaborador) {
+    const { error } = await supabase.from('colaboradores').update({ activo: !c.activo }).eq('id', c.id);
+    if (error) { toast.error('Error al cambiar el estado'); return; }
+    toast.success(c.activo ? 'Colaborador desactivado' : 'Colaborador activado');
+    load();
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('¿Eliminar este colaborador?')) return;
+    const { error } = await supabase.from('colaboradores').delete().eq('id', id);
+    if (error) { toast.error('Error al eliminar'); return; }
+    toast.success('Colaborador eliminado'); load();
+  }
+
+  const activos = colaboradores.filter((c) => c.activo).length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <p className="font-semibold text-gray-800">Colaboradores</p>
+          <p className="text-xs text-gray-400 mt-0.5">{activos} activos de {colaboradores.length} registrados</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setImportOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
+            <Upload size={15} /> Importar Excel
+          </button>
+          <button onClick={startNew}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
+            <Plus size={15} /> Nuevo colaborador
+          </button>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-semibold text-blue-800">{editTarget ? 'Editar colaborador' : 'Nuevo colaborador'}</p>
+          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre completo *"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" autoFocus />
+          <div className="grid grid-cols-2 gap-3">
+            <input type="text" value={area} onChange={(e) => setArea(e.target.value)} placeholder="Área (opcional)"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+            <input type="text" value={cargo} onChange={(e) => setCargo(e.target.value)} placeholder="Cargo (opcional)"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={cancel} className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"><X size={14} /> Cancelar</button>
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60"><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div>
+      ) : colaboradores.length === 0 ? (
+        <div className="py-10 text-center">
+          <Users2 size={28} className="mx-auto text-gray-200 mb-2" />
+          <p className="text-gray-400 text-sm">No hay colaboradores registrados</p>
+          <p className="text-gray-300 text-xs mt-1">Agrégalos uno por uno o importa desde Excel</p>
+        </div>
+      ) : (
+        <div className="border border-gray-100 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50/50 border-b border-gray-100">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Nombre</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden sm:table-cell">Área</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell">Cargo</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Estado</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {colaboradores.map((c) => (
+                  <tr key={c.id} className={`hover:bg-gray-50/50 transition-colors ${!c.activo ? 'opacity-50' : ''}`}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-green-700 text-xs font-semibold">{c.nombre.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <span className="font-medium text-gray-800">{c.nombre}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{c.area ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{c.cargo ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${c.activo ? 'bg-green-500' : 'bg-red-500'}`} />
+                        {c.activo ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 justify-end">
+                        <button onClick={() => startEdit(c)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar">
+                          <Edit2 size={14} />
+                        </button>
+                        <button onClick={() => handleToggle(c)} title={c.activo ? 'Desactivar' : 'Activar'}
+                          className={`p-1.5 rounded-lg transition-colors ${c.activo ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}>
+                          {c.activo ? <UserX size={14} /> : <UserCheck size={14} />}
+                        </button>
+                        <button onClick={() => handleDelete(c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <ImportColaboradoresModal open={importOpen} onClose={() => setImportOpen(false)} onSaved={load} />
     </div>
   );
 }

@@ -20,7 +20,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
   const { user, profile } = useAuth();
   const [form, setForm] = useState({ ...EMPTY });
   const [insumos, setInsumos] = useState<Insumo[]>([]);
-  const [colaboradores, setColaboradores] = useState<{ id: string; nombre: string }[]>([]);
+  const [colaboradores, setColaboradores] = useState<{ id: number; nombre: string; area?: string }[]>([]);
   const [areas, setAreas] = useState<{ id: number; nombre: string }[]>([]);
   const [destinos, setDestinos] = useState<{ id: number; nombre: string }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -30,7 +30,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
   useEffect(() => {
     supabase.from('insumos').select('*').eq('activo', true).gt('stock_actual', 0).order('nombre')
       .then(({ data }) => setInsumos(data ?? []));
-    supabase.from('profiles').select('id, nombre').eq('activo', true).order('nombre')
+    supabase.from('colaboradores').select('id, nombre, area').eq('activo', true).order('nombre')
       .then(({ data }) => setColaboradores(data ?? []));
     supabase.from('areas').select('id, nombre').order('nombre')
       .then(({ data }) => setAreas(data ?? []));
@@ -288,11 +288,11 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
             >
               <option value="">Seleccionar colaborador...</option>
               {colaboradores.map((c) => (
-                <option key={c.id} value={c.nombre}>{c.nombre}</option>
+                <option key={c.id} value={c.nombre}>{c.nombre}{c.area ? ` — ${c.area}` : ''}</option>
               ))}
             </select>
             {colaboradores.length === 0 && (
-              <p className="text-xs text-amber-600 mt-1">No hay colaboradores registrados. Ve a Configuración &gt; Usuarios.</p>
+              <p className="text-xs text-amber-600 mt-1">No hay colaboradores. Ve a Configuración &gt; Colaboradores.</p>
             )}
           </div>
 
