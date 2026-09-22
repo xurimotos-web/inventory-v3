@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, Upload, Package } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, Upload, Package, Lock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Categoria, Unidad, Profile, Area, Destino, Colaborador } from '../../types';
 import ImportColaboradoresModal from './ImportColaboradoresModal';
@@ -8,11 +8,94 @@ import UsuarioModal from '../usuarios/UsuarioModal';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
 import { formatDate } from '../../lib/exportExcel';
 import toast from 'react-hot-toast';
+import { CONFIG_PIN, checkPinSession, setPinSession } from '../../lib/permisos';
+import PermisosPanel from './PermisosPanel';
 
-type Tab = 'categorias' | 'unidades' | 'usuarios' | 'areas' | 'destinos' | 'colaboradores';
+type Tab = 'categorias' | 'unidades' | 'usuarios' | 'areas' | 'destinos' | 'colaboradores' | 'permisos';
+
+/* ── PIN Gate ── */
+function PinGate({ onUnlock }: { onUnlock: () => void }) {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(false);
+  const [show, setShow] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
+
+  function handleSubmit() {
+    if (pin === CONFIG_PIN) {
+      setPinSession();
+      onUnlock();
+    } else {
+      setError(true);
+      setPin('');
+      setTimeout(() => setError(false), 1500);
+    }
+  }
+
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center animate-fade-in-up">
+      <div className="w-full max-w-sm">
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-500 to-violet-600 px-8 py-8 flex flex-col items-center gap-3">
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 ${error ? 'bg-rose-500/30 scale-95' : 'bg-white/20'}`}>
+              <Lock size={28} className="text-white" />
+            </div>
+            <div className="text-center">
+              <p className="text-white font-bold text-lg">Acceso Restringido</p>
+              <p className="text-white/60 text-sm">Ingresa el PIN de administrador</p>
+            </div>
+          </div>
+
+          <div className="p-8 space-y-4">
+            <div className="relative">
+              <input
+                ref={inputRef}
+                type={show ? 'text' : 'password'}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                placeholder="● ● ● ● ● ●"
+                className={`w-full text-center text-2xl tracking-[0.5em] font-bold py-4 px-4 border-2 rounded-2xl outline-none transition-all duration-200
+                  ${error
+                    ? 'border-rose-400 bg-rose-50 text-rose-600 animate-shake'
+                    : 'border-gray-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10'
+                  }`}
+              />
+              <button
+                type="button"
+                onClick={() => setShow(!show)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
+              >
+                {show ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+
+            {error && (
+              <p className="text-center text-sm text-rose-500 font-medium">PIN incorrecto. Intenta de nuevo.</p>
+            )}
+
+            <button
+              onClick={handleSubmit}
+              disabled={pin.length < 6}
+              className="w-full py-3 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-2xl font-semibold text-sm hover:from-indigo-600 hover:to-violet-700 transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98"
+            >
+              Ingresar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ConfiguracionPage() {
+  const [unlocked, setUnlocked] = useState(() => checkPinSession());
   const [tab, setTab] = useState<Tab>('categorias');
+
+  if (!unlocked) return <PinGate onUnlock={() => setUnlocked(true)} />;
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'categorias', label: 'Categorías', icon: Tag },
@@ -21,6 +104,7 @@ export default function ConfiguracionPage() {
     { id: 'areas', label: 'Áreas', icon: Tag },
     { id: 'destinos', label: 'Destinos', icon: Package },
     { id: 'colaboradores', label: 'Colaboradores', icon: Users },
+    { id: 'permisos', label: 'Permisos', icon: ShieldCheck },
   ];
 
   return (
@@ -47,18 +131,20 @@ export default function ConfiguracionPage() {
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-2 px-4 py-3.5 text-sm font-medium transition-all duration-200 whitespace-nowrap relative flex-shrink-0 ${
                 tab === t.id
-                  ? 'text-indigo-600'
+                  ? t.id === 'permisos' ? 'text-violet-600' : 'text-indigo-600'
                   : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50/50'
               }`}
             >
               <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-                tab === t.id ? 'bg-indigo-100' : 'bg-gray-100'
+                tab === t.id
+                  ? t.id === 'permisos' ? 'bg-violet-100' : 'bg-indigo-100'
+                  : 'bg-gray-100'
               }`}>
-                <t.icon size={12} className={tab === t.id ? 'text-indigo-600' : 'text-gray-400'} />
+                <t.icon size={12} className={tab === t.id ? (t.id === 'permisos' ? 'text-violet-600' : 'text-indigo-600') : 'text-gray-400'} />
               </div>
               {t.label}
               {tab === t.id && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-violet-600 rounded-full" />
+                <span className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full ${t.id === 'permisos' ? 'bg-gradient-to-r from-violet-500 to-purple-600' : 'bg-gradient-to-r from-indigo-500 to-violet-600'}`} />
               )}
             </button>
           ))}
@@ -71,6 +157,7 @@ export default function ConfiguracionPage() {
           {tab === 'areas' && <AreasPanel />}
           {tab === 'destinos' && <DestinosPanel />}
           {tab === 'colaboradores' && <ColaboradoresPanel />}
+          {tab === 'permisos' && <PermisosPanel />}
         </div>
       </div>
     </div>

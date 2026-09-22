@@ -5,7 +5,9 @@ import {
   BarChart3, AlertTriangle, X, Boxes, Settings, Users, Building2, Truck, RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../context/PermissionsContext';
 import { supabase } from '../../lib/supabase';
+import type { PermisoKey } from '../../lib/permisos';
 
 interface SidebarProps {
   open: boolean;
@@ -17,13 +19,14 @@ interface NavItem {
   icon: React.ElementType;
   label: string;
   adminOnly?: boolean;
+  permisoKey?: PermisoKey;
 }
 
 const mainNavItems: NavItem[] = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true },
-  { to: '/insumos', icon: Package, label: 'Catálogo de Insumos' },
+  { to: '/insumos', icon: Package, label: 'Catálogo de Insumos', permisoKey: 'ver_insumos' },
   { to: '/entradas', icon: PackagePlus, label: 'Entradas', adminOnly: true },
-  { to: '/salidas', icon: PackageMinus, label: 'Salidas' },
+  { to: '/salidas', icon: PackageMinus, label: 'Salidas', permisoKey: 'ver_salidas' },
   { to: '/asignaciones', icon: Building2, label: 'Asignaciones', adminOnly: true },
   { to: '/proveedores', icon: Truck, label: 'Proveedores', adminOnly: true },
   { to: '/rotacion', icon: RefreshCw, label: 'Rotación', adminOnly: true },
@@ -32,6 +35,7 @@ const mainNavItems: NavItem[] = [
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { isAdmin, profile, user } = useAuth();
+  const { can } = usePermissions();
   const [solicitudesCount, setSolicitudesCount] = useState(0);
   const [misAgotados, setMisAgotados] = useState(0);
 
@@ -58,7 +62,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     });
   }, [isAdmin, user]);
 
-  const visibleMain = mainNavItems.filter((item) => !item.adminOnly || isAdmin);
+  const visibleMain = mainNavItems.filter((item) => {
+    if (item.adminOnly) return isAdmin;
+    if (!isAdmin && item.permisoKey) return can(item.permisoKey);
+    return true;
+  });
 
   return (
     <>

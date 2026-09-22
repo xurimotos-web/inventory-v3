@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { PermissionsProvider } from './context/PermissionsContext';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -66,6 +67,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
+      <PermissionsProvider>
       <BrowserRouter>
         <AppRoutes />
         <Toaster
@@ -83,6 +85,7 @@ export default function App() {
           }}
         />
       </BrowserRouter>
+      </PermissionsProvider>
     </AuthProvider>
   );
 }

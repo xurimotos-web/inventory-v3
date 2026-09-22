@@ -16,6 +16,7 @@ interface UsuarioModalProps {
 const EMPTY = {
   nombre: '', email: '', password: '', departamento: '',
   cargo: '', rol: 'usuario' as 'admin' | 'usuario', activo: true,
+  perfil_tipo: 'visualizador' as 'editor' | 'visualizador',
 };
 
 async function adminChangePassword(userId: string, newPassword: string): Promise<string | null> {
@@ -59,6 +60,7 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
         cargo: usuario.cargo,
         rol: usuario.rol,
         activo: usuario.activo,
+        perfil_tipo: usuario.perfil_tipo ?? 'visualizador',
       });
     } else {
       setForm({ ...EMPTY });
@@ -88,7 +90,7 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
         departamento: form.departamento.trim(),
         cargo: form.cargo.trim(),
         rol: form.rol,
-        activo: isSelf ? undefined : form.activo,
+        ...(isSelf ? {} : { activo: form.activo, perfil_tipo: form.perfil_tipo }),
       }).eq('id', usuario!.id);
 
       if (error) { toast.error('Error al actualizar el usuario'); setSaving(false); return; }
@@ -230,6 +232,29 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
             ))}
           </div>
         </div>
+
+        {/* Tipo de perfil — solo al editar usuarios no-admin y no uno mismo */}
+        {isEdit && !isSelf && form.rol === 'usuario' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de acceso</label>
+            <div className="grid grid-cols-2 gap-3">
+              {(['editor', 'visualizador'] as const).map((tipo) => (
+                <button
+                  key={tipo}
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, perfil_tipo: tipo }))}
+                  className={`px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all text-left
+                    ${form.perfil_tipo === tipo ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                >
+                  <p className="font-semibold capitalize">{tipo}</p>
+                  <p className="text-xs opacity-70 mt-0.5">
+                    {tipo === 'editor' ? 'Puede registrar y modificar' : 'Solo lectura y consultas'}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Estado activo/inactivo — solo al editar y no uno mismo */}
         {isEdit && !isSelf && (

@@ -9,6 +9,7 @@ export interface Profile {
   activo: boolean;
   created_at: string;
   email?: string;
+  perfil_tipo?: 'editor' | 'visualizador' | null;
 }
 
 export interface Categoria {
