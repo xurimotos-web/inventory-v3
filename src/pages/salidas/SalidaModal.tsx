@@ -19,9 +19,10 @@ interface SalidaModalProps {
 const EMPTY = { insumo_id: '', cantidad: '', entregado_a: '', area: '', destino: '', observaciones: '' };
 
 export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const [form, setForm] = useState({ ...EMPTY });
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [userStockMap, setUserStockMap] = useState<Record<number, number>>({});
   const [colaboradores, setColaboradores] = useState<{ id: number; nombre: string; area?: string }[]>([]);
   const [areas, setAreas] = useState<{ id: number; nombre: string }[]>([]);
   const [destinos, setDestinos] = useState<{ id: number; nombre: string }[]>([]);
@@ -30,8 +31,24 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
-    supabase.from('insumos').select('*').eq('activo', true).gt('stock_actual', 0).order('nombre')
-      .then(({ data }) => setInsumos(data ?? []));
+    supabase.from('insumos').select('*').eq('activo', true).order('nombre')
+      .then(async ({ data }) => {
+        const all = data ?? [];
+        if (isAdmin) {
+          setInsumos(all.filter((i) => i.stock_actual > 0));
+        } else if (user) {
+          const { data: salidas } = await supabase
+            .from('salidas')
+            .select('insumo_id, cantidad, es_asignacion')
+            .eq('usuario_id', user.id);
+          const map: Record<number, number> = {};
+          for (const s of salidas ?? []) {
+            map[s.insumo_id] = (map[s.insumo_id] ?? 0) + (s.es_asignacion ? s.cantidad : -s.cantidad);
+          }
+          setUserStockMap(map);
+          setInsumos(all.filter((i) => (map[i.id] ?? 0) > 0));
+        }
+      });
     supabase.from('colaboradores').select('id, nombre, area').eq('activo', true).order('nombre')
       .then(({ data }) => setColaboradores(data ?? []));
     supabase.from('areas').select('id, nombre').order('nombre')
@@ -56,8 +73,9 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
     const insumo = insumos.find((i) => i.id === Number(form.insumo_id));
     if (!insumo) return;
 
-    if (cantidad > insumo.stock_actual) {
-      toast.error(`Stock insuficiente. Disponible: ${insumo.stock_actual} ${insumo.unidad}`);
+    const disponible = isAdmin ? insumo.stock_actual : Math.max(0, userStockMap[insumo.id] ?? 0);
+    if (cantidad > disponible) {
+      toast.error(`Stock insuficiente. Disponible: ${disponible} ${insumo.unidad}`);
       return;
     }
 
@@ -91,7 +109,10 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
   }
 
   const selectedInsumo = insumos.find((i) => i.id === Number(form.insumo_id));
-  const nuevoCantidad = selectedInsumo ? selectedInsumo.stock_actual - Number(form.cantidad || 0) : null;
+  const disponibleSeleccionado = selectedInsumo
+    ? (isAdmin ? selectedInsumo.stock_actual : Math.max(0, userStockMap[selectedInsumo.id] ?? 0))
+    : 0;
+  const nuevoCantidad = selectedInsumo ? disponibleSeleccionado - Number(form.cantidad || 0) : null;
 
   if (saved && selectedInsumo) {
     return (
@@ -199,11 +220,14 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
               className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               <option value="">Seleccionar insumo...</option>
-              {insumos.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.nombre} — {i.stock_actual} {i.unidad} disponibles
-                </option>
-              ))}
+              {insumos.map((i) => {
+                const disp = isAdmin ? i.stock_actual : Math.max(0, userStockMap[i.id] ?? 0);
+                return (
+                  <option key={i.id} value={i.id}>
+                    {i.nombre} — {disp} {i.unidad} disponibles
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -234,12 +258,12 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
                     <StockBadge insumo={selectedInsumo} />
                   </div>
                   <p className="text-sm text-gray-600 mt-1">
-                    Disponible: <strong>{formatNumber(selectedInsumo.stock_actual)}</strong> {selectedInsumo.unidad}
+                    Disponible: <strong>{formatNumber(disponibleSeleccionado)}</strong> {selectedInsumo.unidad}
                   </p>
                   {nuevoCantidad !== null && form.cantidad && (
                     <p className="text-xs mt-1">
-                      Quedará: <strong className={nuevoCantidad < selectedInsumo.stock_minimo ? 'text-red-600' : 'text-green-600'}>
-                        {formatNumber(nuevoCantidad)} {selectedInsumo.unidad}
+                      Quedará: <strong className={nuevoCantidad < 0 ? 'text-red-600' : 'text-green-600'}>
+                        {formatNumber(Math.max(0, nuevoCantidad))} {selectedInsumo.unidad}
                       </strong>
                     </p>
                   )}
@@ -266,7 +290,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
               type="number"
               min="0.01"
               step="0.01"
-              max={selectedInsumo?.stock_actual}
+              max={disponibleSeleccionado || undefined}
               value={form.cantidad}
               onChange={(e) => set('cantidad', e.target.value)}
               placeholder="0"
