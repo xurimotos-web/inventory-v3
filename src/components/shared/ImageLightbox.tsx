@@ -31,7 +31,7 @@ export default function ImageLightbox({ src, alt, open, onClose }: ImageLightbox
       <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
 
       <div
-        className="relative max-w-4xl w-full animate-slide-in"
+        className="relative z-10 max-w-4xl w-full"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Toolbar */}
