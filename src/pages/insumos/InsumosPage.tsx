@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, Eye, ZoomIn, Upload } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, Eye, ZoomIn, Upload, TrendingUp, AlertTriangle, Boxes, SendHorizonal } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Insumo } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import StockBadge from '../../components/shared/StockBadge';
 import InsumoModal from './InsumoModal';
 import ImportInsumosModal from './ImportInsumosModal';
+import AsignarStockModal from './AsignarStockModal';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import Modal from '../../components/shared/Modal';
 import ImageLightbox from '../../components/shared/ImageLightbox';
 import toast from 'react-hot-toast';
-import { formatCurrency } from '../../lib/exportExcel';
+import { formatCurrency, formatNumber } from '../../lib/exportExcel';
 
 export default function InsumosPage() {
   const { isAdmin } = useAuth();
@@ -25,6 +26,7 @@ export default function InsumosPage() {
   const [deleteTarget, setDeleteTarget] = useState<Insumo | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewInsumo, setViewInsumo] = useState<Insumo | null>(null);
+  const [asignarTarget, setAsignarTarget] = useState<Insumo | null>(null);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
   useEffect(() => { load(); }, []);
@@ -68,133 +70,246 @@ export default function InsumosPage() {
     return matchSearch && estado === filtroEstado;
   });
 
+  const totalValor = insumos.reduce((acc, i) => acc + i.stock_actual * i.costo_unitario, 0);
+  const countBajo = insumos.filter(i => i.stock_actual > 0 && i.stock_actual <= i.stock_minimo).length;
+  const countAgotado = insumos.filter(i => i.stock_actual <= 0).length;
+
   if (loading) return <PageLoader />;
 
+  const filterPills: { key: typeof filtroEstado; label: string }[] = [
+    { key: 'todos', label: 'Todos' },
+    { key: 'ok', label: 'En stock' },
+    { key: 'bajo', label: 'Stock bajo' },
+    { key: 'agotado', label: 'Agotado' },
+  ];
+
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-5 animate-fade-in-up">
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl p-4 shadow-lg shadow-indigo-500/25 hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+              <Boxes size={16} className="text-white" />
+            </div>
+            <span className="text-white/60 text-xs font-medium">Catálogo</span>
+          </div>
+          <p className="text-3xl font-bold text-white">{insumos.length}</p>
+          <p className="text-xs text-white/60 mt-0.5">insumos activos</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl p-4 shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+              <TrendingUp size={16} className="text-white" />
+            </div>
+            <span className="text-white/60 text-xs font-medium">Valor</span>
+          </div>
+          <p className="text-xl font-bold text-white leading-tight">{formatCurrency(totalValor)}</p>
+          <p className="text-xs text-white/60 mt-0.5">valor total en bodega</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-4 shadow-lg shadow-amber-500/25 hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+              <AlertTriangle size={16} className="text-white" />
+            </div>
+            <span className="text-white/60 text-xs font-medium">Bajo mínimo</span>
+          </div>
+          <p className="text-3xl font-bold text-white">{countBajo}</p>
+          <p className="text-xs text-white/60 mt-0.5">con stock bajo</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-4 shadow-lg shadow-rose-500/25 hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+              <Package size={16} className="text-white" />
+            </div>
+            <span className="text-white/60 text-xs font-medium">Sin stock</span>
+          </div>
+          <p className="text-3xl font-bold text-white">{countAgotado}</p>
+          <p className="text-xs text-white/60 mt-0.5">insumos agotados</p>
+        </div>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, código, referencia..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all duration-200 shadow-sm"
           />
         </div>
-        <select
-          value={filtroEstado}
-          onChange={(e) => setFiltroEstado(e.target.value as typeof filtroEstado)}
-          className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="todos">Todos</option>
-          <option value="ok">En stock</option>
-          <option value="bajo">Stock bajo</option>
-          <option value="agotado">Agotado</option>
-        </select>
         {isAdmin && (
-          <>
+          <div className="flex gap-2">
             <button
               onClick={() => setImportOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 whitespace-nowrap active:scale-95 shadow-sm"
             >
               <Upload size={15} />
-              Importar Excel
+              Importar
             </button>
             <button
               onClick={() => { setSelected(null); setModalOpen(true); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/30 whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-violet-700 transition-all duration-150 shadow-md shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap"
             >
               <Plus size={16} />
               Nuevo Insumo
             </button>
-          </>
+          </div>
         )}
       </div>
 
-      {/* Stats rápidas */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: 'Total', count: insumos.length, color: 'bg-blue-50 text-blue-700' },
-          { label: 'Stock bajo', count: insumos.filter(i => i.stock_actual > 0 && i.stock_actual <= i.stock_minimo).length, color: 'bg-amber-50 text-amber-700' },
-          { label: 'Agotado', count: insumos.filter(i => i.stock_actual <= 0).length, color: 'bg-red-50 text-red-700' },
-        ].map((s) => (
-          <div key={s.label} className={`rounded-xl px-4 py-3 ${s.color}`}>
-            <p className="text-xl font-bold">{s.count}</p>
-            <p className="text-xs font-medium opacity-80">{s.label}</p>
-          </div>
-        ))}
+      {/* Filter pills + result count */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          {filterPills.map((pill) => (
+            <button
+              key={pill.key}
+              onClick={() => setFiltroEstado(pill.key)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 ${
+                filtroEstado === pill.key
+                  ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/25'
+                  : 'bg-white text-gray-500 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
+              }`}
+            >
+              {pill.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-gray-400 font-medium">
+          {filtered.length === insumos.length
+            ? `${insumos.length} insumos`
+            : `${filtered.length} de ${insumos.length} insumos`}
+        </span>
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Desktop */}
+      {/* Tabla Desktop */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Insumo</th>
-                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Categoría</th>
-                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Stock</th>
-                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Mínimo</th>
-                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Costo</th>
-                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Estado</th>
-                <th className="px-5 py-3.5" />
+              <tr className="border-b border-gray-100 bg-gradient-to-r from-gray-50/80 to-gray-50/40">
+                <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Insumo</th>
+                <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Categoría</th>
+                <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Stock</th>
+                <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Costo unit.</th>
+                <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden xl:table-cell">Valor total</th>
+                <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Estado</th>
+                <th className="px-5 py-4" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-50/80">
               {filtered.map((insumo) => {
                 const cat = insumo.categoria as unknown as { nombre: string };
+                const pct = insumo.stock_minimo > 0 ? Math.min(100, Math.round((insumo.stock_actual / (insumo.stock_minimo * 2)) * 100)) : 100;
+                const barColor = insumo.stock_actual <= 0 ? 'bg-rose-400' : insumo.stock_actual <= insumo.stock_minimo ? 'bg-amber-400' : 'bg-emerald-400';
                 return (
-                  <tr key={insumo.id} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="px-5 py-3.5">
+                  <tr key={insumo.id} className="hover:bg-indigo-50/20 transition-colors duration-150 group">
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         {insumo.imagen_url ? (
                           <button
                             onClick={() => openLightbox(insumo.imagen_url!, insumo.nombre)}
-                            className="relative w-9 h-9 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 group"
-                            title="Ver imagen ampliada"
+                            className="relative w-11 h-11 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 group/img shadow-sm"
+                            title="Ver imagen"
                           >
-                            <img src={insumo.imagen_url} alt="" className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                              <ZoomIn size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <img src={insumo.imagen_url} alt="" className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-300" />
+                            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center">
+                              <ZoomIn size={13} className="text-white opacity-0 group-hover/img:opacity-100 transition-opacity" />
                             </div>
                           </button>
                         ) : (
-                          <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                            <Package size={14} className="text-blue-400" />
+                          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100/50 flex items-center justify-center flex-shrink-0">
+                            <Package size={16} className="text-indigo-300" />
                           </div>
                         )}
-                        <div>
-                          <p className="font-medium text-gray-800">{insumo.nombre}</p>
-                          {insumo.codigo && <p className="text-xs text-gray-400 font-mono">{insumo.codigo}</p>}
-                          {!insumo.codigo && insumo.descripcion && <p className="text-xs text-gray-400 truncate max-w-48">{insumo.descripcion}</p>}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-800 leading-tight">{insumo.nombre}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {insumo.codigo && (
+                              <span className="text-xs text-gray-400 font-mono bg-gray-50 px-1.5 py-0.5 rounded">{insumo.codigo}</span>
+                            )}
+                            {!insumo.codigo && insumo.descripcion && (
+                              <p className="text-xs text-gray-400 truncate max-w-44">{insumo.descripcion}</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-gray-600">{cat?.nombre ?? '—'}</td>
-                    <td className="px-5 py-3.5 font-semibold text-gray-800">{insumo.stock_actual} <span className="font-normal text-gray-400 text-xs">{insumo.unidad}</span></td>
-                    <td className="px-5 py-3.5 text-gray-600">{insumo.stock_minimo} {insumo.unidad}</td>
-                    <td className="px-5 py-3.5 text-gray-600">{formatCurrency(insumo.costo_unitario)}</td>
-                    <td className="px-5 py-3.5"><StockBadge insumo={insumo} /></td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-4">
+                      {cat?.nombre ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200/60">
+                          {cat.nombre}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="space-y-1.5 min-w-[100px]">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="font-bold text-gray-800 text-base leading-none">{formatNumber(insumo.stock_actual)}</span>
+                          <span className="text-xs text-gray-400">{insumo.unidad}</span>
+                          <span className="text-xs text-gray-300 ml-1">/ mín {formatNumber(insumo.stock_minimo)}</span>
+                        </div>
+                        <div className="w-24 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-1.5 rounded-full transition-all duration-300 ${barColor}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-gray-600 hidden lg:table-cell">
+                      <span className="font-medium">{formatCurrency(insumo.costo_unitario)}</span>
+                    </td>
+                    <td className="px-5 py-4 hidden xl:table-cell">
+                      <span className="font-semibold text-gray-700">{formatCurrency(insumo.stock_actual * insumo.costo_unitario)}</span>
+                    </td>
+                    <td className="px-5 py-4"><StockBadge insumo={insumo} /></td>
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => setViewInsumo(insumo)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver detalle">
+                        <button
+                          onClick={() => setViewInsumo(insumo)}
+                          className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-150 active:scale-90"
+                          title="Ver detalle"
+                        >
                           <Eye size={15} />
                         </button>
                         {insumo.imagen_url && (
-                          <button onClick={() => openLightbox(insumo.imagen_url!, insumo.nombre)} className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title="Ver foto">
+                          <button
+                            onClick={() => openLightbox(insumo.imagen_url!, insumo.nombre)}
+                            className="p-1.5 text-gray-300 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all duration-150 active:scale-90"
+                            title="Ver foto"
+                          >
                             <ZoomIn size={15} />
                           </button>
                         )}
                         {isAdmin && (
                           <>
-                            <button onClick={() => { setSelected(insumo); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                            <button
+                              onClick={() => setAsignarTarget(insumo)}
+                              className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-150 active:scale-90"
+                              title="Asignar a usuario"
+                            >
+                              <SendHorizonal size={15} />
+                            </button>
+                            <button
+                              onClick={() => { setSelected(insumo); setModalOpen(true); }}
+                              className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-150 active:scale-90"
+                            >
                               <Edit2 size={15} />
                             </button>
-                            <button onClick={() => setDeleteTarget(insumo)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                            <button
+                              onClick={() => setDeleteTarget(insumo)}
+                              className="p-1.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-150 active:scale-90"
+                            >
                               <Trash2 size={15} />
                             </button>
                           </>
@@ -206,8 +321,16 @@ export default function InsumosPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-gray-400 text-sm">
-                    No se encontraron insumos
+                  <td colSpan={7} className="px-5 py-16 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center">
+                        <Package size={22} className="text-gray-300" />
+                      </div>
+                      <div>
+                        <p className="text-gray-500 font-medium text-sm">No se encontraron insumos</p>
+                        <p className="text-gray-400 text-xs mt-0.5">Intenta ajustar el filtro o la búsqueda</p>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -216,54 +339,93 @@ export default function InsumosPage() {
         </div>
 
         {/* Mobile cards */}
-        <div className="md:hidden divide-y divide-gray-100">
+        <div className="md:hidden divide-y divide-gray-50">
           {filtered.map((insumo) => {
             const cat = insumo.categoria as unknown as { nombre: string };
+            const pct = insumo.stock_minimo > 0 ? Math.min(100, Math.round((insumo.stock_actual / (insumo.stock_minimo * 2)) * 100)) : 100;
+            const barColor = insumo.stock_actual <= 0 ? 'bg-rose-400' : insumo.stock_actual <= insumo.stock_minimo ? 'bg-amber-400' : 'bg-emerald-400';
             return (
-              <div key={insumo.id} className="p-4 flex items-center gap-3">
-                {insumo.imagen_url ? (
-                  <button
-                    onClick={() => openLightbox(insumo.imagen_url!, insumo.nombre)}
-                    className="relative w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 group"
-                  >
-                    <img src={insumo.imagen_url} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                      <ZoomIn size={14} className="text-white opacity-0 group-hover:opacity-100" />
-                    </div>
-                  </button>
-                ) : (
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <Package size={18} className="text-blue-400" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-800 text-sm">{insumo.nombre}</p>
-                  <p className="text-xs text-gray-400">{cat?.nombre ?? 'Sin categoría'}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <StockBadge insumo={insumo} />
-                    <span className="text-xs text-gray-500">{insumo.stock_actual} {insumo.unidad}</span>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <button onClick={() => setViewInsumo(insumo)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg">
-                    <Eye size={16} />
-                  </button>
-                  {isAdmin && (
-                    <button onClick={() => { setSelected(insumo); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg">
-                      <Edit2 size={16} />
+              <div key={insumo.id} className="p-4 hover:bg-indigo-50/10 transition-colors">
+                <div className="flex items-start gap-3">
+                  {insumo.imagen_url ? (
+                    <button
+                      onClick={() => openLightbox(insumo.imagen_url!, insumo.nombre)}
+                      className="relative w-14 h-14 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm"
+                    >
+                      <img src={insumo.imagen_url} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-all flex items-center justify-center">
+                        <ZoomIn size={14} className="text-white opacity-0 hover:opacity-100" />
+                      </div>
                     </button>
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100/50 flex items-center justify-center flex-shrink-0">
+                      <Package size={20} className="text-indigo-300" />
+                    </div>
                   )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-800 text-sm leading-tight">{insumo.nombre}</p>
+                        {cat?.nombre && (
+                          <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                            {cat.nombre}
+                          </span>
+                        )}
+                      </div>
+                      <StockBadge insumo={insumo} />
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>Stock: <strong className="text-gray-700">{formatNumber(insumo.stock_actual)}</strong> {insumo.unidad}</span>
+                        <span className="text-gray-400">mín {formatNumber(insumo.stock_minimo)}</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                        <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-gray-400">{formatCurrency(insumo.costo_unitario)} / {insumo.unidad}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setViewInsumo(insumo)}
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-90"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => { setSelected(insumo); setModalOpen(true); }}
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-90"
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
           })}
           {filtered.length === 0 && (
-            <div className="p-12 text-center text-gray-400 text-sm">No se encontraron insumos</div>
+            <div className="py-16 text-center">
+              <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
+                <Package size={22} className="text-gray-300" />
+              </div>
+              <p className="text-gray-400 text-sm">No se encontraron insumos</p>
+            </div>
           )}
         </div>
       </div>
 
       <ImportInsumosModal open={importOpen} onClose={() => setImportOpen(false)} onSaved={load} />
+
+      <AsignarStockModal
+        open={!!asignarTarget}
+        onClose={() => setAsignarTarget(null)}
+        onSaved={load}
+        insumo={asignarTarget}
+      />
 
       <InsumoModal
         open={modalOpen}
@@ -283,51 +445,79 @@ export default function InsumosPage() {
 
       {/* Modal detalle */}
       <Modal open={!!viewInsumo} onClose={() => setViewInsumo(null)} title="Detalle del Insumo" size="md">
-        {viewInsumo && (
-          <div className="space-y-4">
-            {viewInsumo.imagen_url ? (
-              <div className="relative rounded-xl overflow-hidden bg-gray-100 h-52 group cursor-zoom-in"
-                onClick={() => openLightbox(viewInsumo.imagen_url!, viewInsumo.nombre)}>
-                <img src={viewInsumo.imagen_url} alt={viewInsumo.nombre} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-xl px-3 py-2 flex items-center gap-2 text-sm font-medium text-gray-800">
-                    <ZoomIn size={16} />
-                    Ver en tamaño completo
+        {viewInsumo && (() => {
+          const pct = viewInsumo.stock_minimo > 0 ? Math.min(100, Math.round((viewInsumo.stock_actual / (viewInsumo.stock_minimo * 2)) * 100)) : 100;
+          const barColor = viewInsumo.stock_actual <= 0 ? 'bg-rose-400' : viewInsumo.stock_actual <= viewInsumo.stock_minimo ? 'bg-amber-400' : 'bg-emerald-400';
+          return (
+            <div className="space-y-4">
+              {viewInsumo.imagen_url ? (
+                <div
+                  className="relative rounded-2xl overflow-hidden bg-gray-100 h-52 group cursor-zoom-in"
+                  onClick={() => openLightbox(viewInsumo.imagen_url!, viewInsumo.nombre)}
+                >
+                  <img src={viewInsumo.imagen_url} alt={viewInsumo.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 rounded-xl px-3 py-2 flex items-center gap-2 text-sm font-medium text-gray-800 shadow-lg">
+                      <ZoomIn size={16} />
+                      Ver en tamaño completo
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="h-32 rounded-xl bg-gray-50 flex items-center justify-center border-2 border-dashed border-gray-200">
-                <div className="text-center">
-                  <Package size={28} className="text-gray-300 mx-auto mb-1" />
-                  <p className="text-xs text-gray-400">Sin imagen</p>
+              ) : (
+                <div className="h-32 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 flex items-center justify-center border border-indigo-100/60">
+                  <div className="text-center">
+                    <div className="w-12 h-12 rounded-xl bg-indigo-100/60 flex items-center justify-center mx-auto mb-2">
+                      <Package size={22} className="text-indigo-300" />
+                    </div>
+                    <p className="text-xs text-indigo-300 font-medium">Sin imagen</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Stock progress */}
+              <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nivel de stock</p>
+                  <StockBadge insumo={viewInsumo} />
+                </div>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-2xl font-bold text-gray-800">{formatNumber(viewInsumo.stock_actual)}</span>
+                  <span className="text-sm text-gray-400">{viewInsumo.unidad}</span>
+                  <span className="text-xs text-gray-300 ml-1">/ mínimo {formatNumber(viewInsumo.stock_minimo)} {viewInsumo.unidad}</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div className={`h-2 rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
-            )}
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {[
-                { label: 'Nombre', value: viewInsumo.nombre },
-                { label: 'Unidad', value: viewInsumo.unidad },
-                { label: 'Stock actual', value: `${viewInsumo.stock_actual} ${viewInsumo.unidad}` },
-                { label: 'Stock mínimo', value: `${viewInsumo.stock_minimo} ${viewInsumo.unidad}` },
-                { label: 'Costo unitario', value: formatCurrency(viewInsumo.costo_unitario) },
-                { label: 'Valor total', value: formatCurrency(viewInsumo.stock_actual * viewInsumo.costo_unitario) },
-              ].map(({ label, value }) => (
-                <div key={label} className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs text-gray-400 font-medium">{label}</p>
-                  <p className="text-gray-800 font-semibold mt-0.5">{value}</p>
+
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-2.5 text-sm">
+                {[
+                  { label: 'Nombre', value: viewInsumo.nombre },
+                  { label: 'Unidad', value: viewInsumo.unidad },
+                  { label: 'Costo unitario', value: formatCurrency(viewInsumo.costo_unitario) },
+                  { label: 'Valor en bodega', value: formatCurrency(viewInsumo.stock_actual * viewInsumo.costo_unitario) },
+                  ...(viewInsumo.codigo ? [{ label: 'Código', value: viewInsumo.codigo }] : []),
+                  ...(viewInsumo.referencia ? [{ label: 'Referencia', value: viewInsumo.referencia }] : []),
+                  ...(viewInsumo.tienda_referencia ? [{ label: 'Tienda', value: viewInsumo.tienda_referencia }] : []),
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-gray-50 rounded-xl p-3 hover:bg-indigo-50/30 transition-colors duration-150">
+                    <p className="text-xs text-gray-400 font-medium">{label}</p>
+                    <p className="text-gray-800 font-semibold mt-0.5 truncate">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {viewInsumo.descripcion && (
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 font-medium mb-1">Descripción</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{viewInsumo.descripcion}</p>
                 </div>
-              ))}
+              )}
             </div>
-            {viewInsumo.descripcion && (
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-xs text-gray-400 font-medium mb-1">Descripción</p>
-                <p className="text-sm text-gray-700">{viewInsumo.descripcion}</p>
-              </div>
-            )}
-            <StockBadge insumo={viewInsumo} />
-          </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* Lightbox */}

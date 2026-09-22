@@ -24,22 +24,47 @@ export default function ConfiguracionPage() {
   ];
 
   return (
-    <div className="space-y-5 animate-fade-in">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex border-b border-gray-100 overflow-x-auto">
+    <div className="space-y-5 animate-fade-in-up">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-indigo-500 to-violet-600 rounded-2xl p-5 shadow-lg shadow-indigo-500/25">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+            <Settings size={20} className="text-white" />
+          </div>
+          <div>
+            <p className="text-white font-bold text-base">Configuración</p>
+            <p className="text-white/60 text-xs">Gestiona categorías, unidades, usuarios y más</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden">
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100 overflow-x-auto scrollbar-hide">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${tab === t.id ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/30' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex items-center gap-2 px-4 py-3.5 text-sm font-medium transition-all duration-200 whitespace-nowrap relative flex-shrink-0 ${
+                tab === t.id
+                  ? 'text-indigo-600'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50/50'
+              }`}
             >
-              <t.icon size={15} />
+              <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+                tab === t.id ? 'bg-indigo-100' : 'bg-gray-100'
+              }`}>
+                <t.icon size={12} className={tab === t.id ? 'text-indigo-600' : 'text-gray-400'} />
+              </div>
               {t.label}
+              {tab === t.id && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-violet-600 rounded-full" />
+              )}
             </button>
           ))}
         </div>
 
-        <div className="p-5">
+        <div className="p-6">
           {tab === 'categorias' && <CategoriasPanel />}
           {tab === 'unidades' && <UnidadesPanel />}
           {tab === 'usuarios' && <UsuariosPanel />}
@@ -51,6 +76,16 @@ export default function ConfiguracionPage() {
     </div>
   );
 }
+
+/* ── Estilos compartidos ── */
+const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all duration-200 bg-white';
+const btnPrimary = 'flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-violet-700 transition-all duration-150 disabled:opacity-60 active:scale-95 shadow-sm shadow-indigo-500/20';
+const btnSecondary = 'flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 active:scale-95';
+const formBg = 'bg-gradient-to-br from-indigo-50/60 to-violet-50/40 border border-indigo-100/60 rounded-xl p-4 space-y-3';
+const chipCls = (active: boolean) =>
+  `flex items-center justify-between gap-2 px-3 py-2.5 border rounded-xl transition-all duration-150 group cursor-default ${
+    active ? 'border-indigo-100 bg-indigo-50/30' : 'border-gray-100 hover:border-indigo-100 hover:bg-indigo-50/20'
+  }`;
 
 /* ───────── CATEGORÍAS ───────── */
 function CategoriasPanel() {
@@ -101,21 +136,17 @@ function CategoriasPanel() {
           <p className="font-semibold text-gray-800">Categorías de Insumos</p>
           <p className="text-xs text-gray-400 mt-0.5">Organiza tus insumos por categoría</p>
         </div>
-        <button onClick={startNew} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
-          <Plus size={15} /> Nueva categoría
-        </button>
+        <button onClick={startNew} className={btnPrimary}><Plus size={15} /> Nueva categoría</button>
       </div>
 
       {showForm && (
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
-          <p className="text-sm font-semibold text-blue-800">{editId ? 'Editar categoría' : 'Nueva categoría'}</p>
-          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre *"
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" autoFocus />
-          <input type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Descripción (opcional)"
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+        <div className={formBg}>
+          <p className="text-sm font-semibold text-indigo-800">{editId ? 'Editar categoría' : 'Nueva categoría'}</p>
+          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre *" className={inputCls} autoFocus />
+          <input type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Descripción (opcional)" className={inputCls} />
           <div className="flex gap-2">
-            <button onClick={cancel} className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"><X size={14} /> Cancelar</button>
-            <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60"><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
+            <button onClick={cancel} className={btnSecondary}><X size={14} /> Cancelar</button>
+            <button onClick={handleSave} disabled={saving} className={btnPrimary}><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
           </div>
         </div>
       )}
@@ -125,15 +156,17 @@ function CategoriasPanel() {
       ) : (
         <div className="divide-y divide-gray-50 border border-gray-100 rounded-xl overflow-hidden">
           {categorias.map((c) => (
-            <div key={c.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50/50 transition-colors">
-              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0"><Tag size={14} className="text-blue-600" /></div>
+            <div key={c.id} className="flex items-center gap-3 px-4 py-3 hover:bg-indigo-50/20 transition-colors duration-150">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
+                <Tag size={14} className="text-indigo-600" />
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-800">{c.nombre}</p>
                 {c.descripcion && <p className="text-xs text-gray-400 truncate">{c.descripcion}</p>}
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => startEdit(c)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil size={14} /></button>
-                <button onClick={() => handleDelete(c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                <button onClick={() => startEdit(c)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-150 active:scale-90"><Pencil size={14} /></button>
+                <button onClick={() => handleDelete(c.id)} className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-150 active:scale-90"><Trash2 size={14} /></button>
               </div>
             </div>
           ))}
@@ -189,19 +222,16 @@ function UnidadesPanel() {
           <p className="font-semibold text-gray-800">Unidades de Medida</p>
           <p className="text-xs text-gray-400 mt-0.5">Unidades disponibles al crear insumos</p>
         </div>
-        <button onClick={startNew} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
-          <Plus size={15} /> Nueva unidad
-        </button>
+        <button onClick={startNew} className={btnPrimary}><Plus size={15} /> Nueva unidad</button>
       </div>
 
       {showForm && (
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
+        <div className={formBg}>
           <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: litro, kg, metro..."
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSave()} />
+            className={inputCls} autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSave()} />
           <div className="flex gap-2">
-            <button onClick={cancel} className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"><X size={14} /> Cancelar</button>
-            <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60"><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
+            <button onClick={cancel} className={btnSecondary}><X size={14} /> Cancelar</button>
+            <button onClick={handleSave} disabled={saving} className={btnPrimary}><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
           </div>
         </div>
       )}
@@ -211,14 +241,14 @@ function UnidadesPanel() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
           {unidades.map((u) => (
-            <div key={u.id} className="flex items-center justify-between gap-2 px-3 py-2.5 border border-gray-100 rounded-xl hover:border-blue-100 hover:bg-blue-50/20 transition-colors group">
+            <div key={u.id} className={chipCls(false)}>
               <div className="flex items-center gap-2 min-w-0">
                 <Settings size={12} className="text-gray-300 flex-shrink-0" />
                 <span className="text-sm text-gray-700 font-medium truncate">{u.nombre}</span>
               </div>
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                <button onClick={() => startEdit(u)} className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"><Pencil size={12} /></button>
-                <button onClick={() => handleDelete(u.id)} className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"><Trash2 size={12} /></button>
+                <button onClick={() => startEdit(u)} className="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors active:scale-90"><Pencil size={12} /></button>
+                <button onClick={() => handleDelete(u.id)} className="p-1 text-gray-400 hover:text-rose-600 rounded transition-colors active:scale-90"><Trash2 size={12} /></button>
               </div>
             </div>
           ))}
@@ -272,12 +302,11 @@ function UsuariosPanel() {
         </div>
         <div className="flex gap-2">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..."
-              className="pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all" />
           </div>
-          <button onClick={() => { setSelected(null); setModalOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
+          <button onClick={() => { setSelected(null); setModalOpen(true); }} className={btnPrimary}>
             <Plus size={15} /> Nuevo usuario
           </button>
         </div>
@@ -286,13 +315,13 @@ function UsuariosPanel() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total', count: usuarios.length, color: 'bg-blue-50 text-blue-700' },
-          { label: 'Activos', count: usuarios.filter(u => u.activo).length, color: 'bg-green-50 text-green-700' },
-          { label: 'Admins', count: usuarios.filter(u => u.rol === 'admin').length, color: 'bg-purple-50 text-purple-700' },
+          { label: 'Total', count: usuarios.length, bg: 'from-indigo-500 to-blue-600', shadow: 'shadow-indigo-500/20' },
+          { label: 'Activos', count: usuarios.filter(u => u.activo).length, bg: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/20' },
+          { label: 'Admins', count: usuarios.filter(u => u.rol === 'admin').length, bg: 'from-violet-500 to-purple-600', shadow: 'shadow-violet-500/20' },
         ].map((s) => (
-          <div key={s.label} className={`rounded-xl px-4 py-3 ${s.color}`}>
-            <p className="text-xl font-bold">{s.count}</p>
-            <p className="text-xs font-medium opacity-80">{s.label}</p>
+          <div key={s.label} className={`bg-gradient-to-br ${s.bg} rounded-xl px-4 py-3 shadow-md ${s.shadow}`}>
+            <p className="text-xl font-bold text-white">{s.count}</p>
+            <p className="text-xs font-medium text-white/70">{s.label}</p>
           </div>
         ))}
       </div>
@@ -302,7 +331,7 @@ function UsuariosPanel() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50">
+                <tr className="border-b border-gray-100 bg-gray-50/60">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Usuario</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden sm:table-cell">Departamento</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell">Cargo</th>
@@ -314,39 +343,39 @@ function UsuariosPanel() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.map((usuario) => (
-                  <tr key={usuario.id} className={`hover:bg-gray-50/50 transition-colors ${!usuario.activo ? 'opacity-50' : ''}`}>
+                  <tr key={usuario.id} className={`hover:bg-indigo-50/20 transition-colors duration-150 ${!usuario.activo ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                          <span className="text-blue-700 text-xs font-semibold">{usuario.nombre.charAt(0).toUpperCase()}</span>
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-indigo-700 text-xs font-semibold">{usuario.nombre.charAt(0).toUpperCase()}</span>
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium text-gray-800 text-sm truncate">{usuario.nombre}</p>
-                          {usuario.id === me?.id && <span className="text-xs text-blue-600">Tú</span>}
+                          {usuario.id === me?.id && <span className="text-xs text-indigo-600">Tú</span>}
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-600 text-sm hidden sm:table-cell">{usuario.departamento}</td>
                     <td className="px-4 py-3 text-gray-600 text-sm hidden md:table-cell">{usuario.cargo}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${usuario.rol === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${usuario.rol === 'admin' ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'}`}>
                         {usuario.rol}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs hidden lg:table-cell">{formatDate(usuario.created_at)}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${usuario.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${usuario.activo ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${usuario.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${usuario.activo ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                         {usuario.activo ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => { setSelected(usuario); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <button onClick={() => { setSelected(usuario); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-90">
                           <Edit2 size={14} />
                         </button>
                         {usuario.id !== me?.id && (
-                          <button onClick={() => setToggleTarget(usuario)} className={`p-1.5 rounded-lg transition-colors ${usuario.activo ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}>
+                          <button onClick={() => setToggleTarget(usuario)} className={`p-1.5 rounded-lg transition-all active:scale-90 ${usuario.activo ? 'text-gray-400 hover:text-rose-600 hover:bg-rose-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'}`}>
                             {usuario.activo ? <UserX size={14} /> : <UserCheck size={14} />}
                           </button>
                         )}
@@ -423,20 +452,17 @@ function AreasPanel() {
           <p className="font-semibold text-gray-800">Áreas</p>
           <p className="text-xs text-gray-400 mt-0.5">Áreas disponibles al registrar salidas</p>
         </div>
-        <button onClick={startNew} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
-          <Plus size={15} /> Nueva área
-        </button>
+        <button onClick={startNew} className={btnPrimary}><Plus size={15} /> Nueva área</button>
       </div>
 
       {showForm && (
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
+        <div className={formBg}>
           <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
             placeholder="Ej: Producción, Cocina, Bodega..."
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSave()} />
+            className={inputCls} autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSave()} />
           <div className="flex gap-2">
-            <button onClick={cancel} className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"><X size={14} /> Cancelar</button>
-            <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60"><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
+            <button onClick={cancel} className={btnSecondary}><X size={14} /> Cancelar</button>
+            <button onClick={handleSave} disabled={saving} className={btnPrimary}><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
           </div>
         </div>
       )}
@@ -446,14 +472,14 @@ function AreasPanel() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
           {areas.map((a) => (
-            <div key={a.id} className="flex items-center justify-between gap-2 px-3 py-2.5 border border-gray-100 rounded-xl hover:border-blue-100 hover:bg-blue-50/20 transition-colors group">
+            <div key={a.id} className={chipCls(false)}>
               <div className="flex items-center gap-2 min-w-0">
-                <Tag size={12} className="text-gray-300 flex-shrink-0" />
+                <Tag size={12} className="text-indigo-300 flex-shrink-0" />
                 <span className="text-sm text-gray-700 font-medium truncate">{a.nombre}</span>
               </div>
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                <button onClick={() => startEdit(a)} className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"><Pencil size={12} /></button>
-                <button onClick={() => handleDelete(a.id)} className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"><Trash2 size={12} /></button>
+                <button onClick={() => startEdit(a)} className="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors active:scale-90"><Pencil size={12} /></button>
+                <button onClick={() => handleDelete(a.id)} className="p-1 text-gray-400 hover:text-rose-600 rounded transition-colors active:scale-90"><Trash2 size={12} /></button>
               </div>
             </div>
           ))}
@@ -509,20 +535,17 @@ function DestinosPanel() {
           <p className="font-semibold text-gray-800">Destinos</p>
           <p className="text-xs text-gray-400 mt-0.5">Destinos disponibles al registrar salidas</p>
         </div>
-        <button onClick={startNew} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
-          <Plus size={15} /> Nuevo destino
-        </button>
+        <button onClick={startNew} className={btnPrimary}><Plus size={15} /> Nuevo destino</button>
       </div>
 
       {showForm && (
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
+        <div className={formBg}>
           <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
             placeholder="Ej: Proyecto X, Mantenimiento, Ventas..."
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSave()} />
+            className={inputCls} autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSave()} />
           <div className="flex gap-2">
-            <button onClick={cancel} className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"><X size={14} /> Cancelar</button>
-            <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60"><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
+            <button onClick={cancel} className={btnSecondary}><X size={14} /> Cancelar</button>
+            <button onClick={handleSave} disabled={saving} className={btnPrimary}><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
           </div>
         </div>
       )}
@@ -532,14 +555,14 @@ function DestinosPanel() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
           {destinos.map((d) => (
-            <div key={d.id} className="flex items-center justify-between gap-2 px-3 py-2.5 border border-gray-100 rounded-xl hover:border-blue-100 hover:bg-blue-50/20 transition-colors group">
+            <div key={d.id} className={chipCls(false)}>
               <div className="flex items-center gap-2 min-w-0">
-                <Package size={12} className="text-gray-300 flex-shrink-0" />
+                <Package size={12} className="text-violet-300 flex-shrink-0" />
                 <span className="text-sm text-gray-700 font-medium truncate">{d.nombre}</span>
               </div>
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                <button onClick={() => startEdit(d)} className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"><Pencil size={12} /></button>
-                <button onClick={() => handleDelete(d.id)} className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"><Trash2 size={12} /></button>
+                <button onClick={() => startEdit(d)} className="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors active:scale-90"><Pencil size={12} /></button>
+                <button onClick={() => handleDelete(d.id)} className="p-1 text-gray-400 hover:text-rose-600 rounded transition-colors active:scale-90"><Trash2 size={12} /></button>
               </div>
             </div>
           ))}
@@ -610,30 +633,26 @@ function ColaboradoresPanel() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setImportOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 active:scale-95">
             <Upload size={15} /> Importar Excel
           </button>
-          <button onClick={startNew}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
+          <button onClick={startNew} className={btnPrimary}>
             <Plus size={15} /> Nuevo colaborador
           </button>
         </div>
       </div>
 
       {showForm && (
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
-          <p className="text-sm font-semibold text-blue-800">{editTarget ? 'Editar colaborador' : 'Nuevo colaborador'}</p>
-          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre completo *"
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" autoFocus />
+        <div className={formBg}>
+          <p className="text-sm font-semibold text-indigo-800">{editTarget ? 'Editar colaborador' : 'Nuevo colaborador'}</p>
+          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre completo *" className={inputCls} autoFocus />
           <div className="grid grid-cols-2 gap-3">
-            <input type="text" value={area} onChange={(e) => setArea(e.target.value)} placeholder="Área (opcional)"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
-            <input type="text" value={cargo} onChange={(e) => setCargo(e.target.value)} placeholder="Cargo (opcional)"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+            <input type="text" value={area} onChange={(e) => setArea(e.target.value)} placeholder="Área (opcional)" className={inputCls} />
+            <input type="text" value={cargo} onChange={(e) => setCargo(e.target.value)} placeholder="Cargo (opcional)" className={inputCls} />
           </div>
           <div className="flex gap-2">
-            <button onClick={cancel} className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50"><X size={14} /> Cancelar</button>
-            <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-60"><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
+            <button onClick={cancel} className={btnSecondary}><X size={14} /> Cancelar</button>
+            <button onClick={handleSave} disabled={saving} className={btnPrimary}><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
           </div>
         </div>
       )}
@@ -642,7 +661,9 @@ function ColaboradoresPanel() {
         <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div>
       ) : colaboradores.length === 0 ? (
         <div className="py-10 text-center">
-          <Users size={28} className="mx-auto text-gray-200 mb-2" />
+          <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
+            <Users size={24} className="text-gray-300" />
+          </div>
           <p className="text-gray-400 text-sm">No hay colaboradores registrados</p>
           <p className="text-gray-300 text-xs mt-1">Agrégalos uno por uno o importa desde Excel</p>
         </div>
@@ -651,7 +672,7 @@ function ColaboradoresPanel() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100">
+                <tr className="bg-gray-50/60 border-b border-gray-100">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Nombre</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden sm:table-cell">Área</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell">Cargo</th>
@@ -661,11 +682,11 @@ function ColaboradoresPanel() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {colaboradores.map((c) => (
-                  <tr key={c.id} className={`hover:bg-gray-50/50 transition-colors ${!c.activo ? 'opacity-50' : ''}`}>
+                  <tr key={c.id} className={`hover:bg-indigo-50/20 transition-colors duration-150 ${!c.activo ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                          <span className="text-green-700 text-xs font-semibold">{c.nombre.charAt(0).toUpperCase()}</span>
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-emerald-700 text-xs font-semibold">{c.nombre.charAt(0).toUpperCase()}</span>
                         </div>
                         <span className="font-medium text-gray-800">{c.nombre}</span>
                       </div>
@@ -673,21 +694,21 @@ function ColaboradoresPanel() {
                     <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{c.area ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{c.cargo ?? '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${c.activo ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${c.activo ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                         {c.activo ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => startEdit(c)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar">
+                        <button onClick={() => startEdit(c)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-90">
                           <Edit2 size={14} />
                         </button>
-                        <button onClick={() => handleToggle(c)} title={c.activo ? 'Desactivar' : 'Activar'}
-                          className={`p-1.5 rounded-lg transition-colors ${c.activo ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}>
+                        <button onClick={() => handleToggle(c)}
+                          className={`p-1.5 rounded-lg transition-all active:scale-90 ${c.activo ? 'text-gray-400 hover:text-rose-600 hover:bg-rose-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'}`}>
                           {c.activo ? <UserX size={14} /> : <UserCheck size={14} />}
                         </button>
-                        <button onClick={() => handleDelete(c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                        <button onClick={() => handleDelete(c.id)} className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-90">
                           <Trash2 size={14} />
                         </button>
                       </div>

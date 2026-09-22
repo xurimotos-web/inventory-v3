@@ -5,7 +5,8 @@ import type { Salida } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { AlertTriangle, Trash2, KeyRound, PackageMinus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { formatDate } from '../../lib/exportExcel';
+import { formatDate, formatNumber } from '../../lib/exportExcel';
+import { recalcularStock } from '../../lib/stockUtils';
 
 interface DeleteSalidaModalProps {
   open: boolean;
@@ -43,11 +44,7 @@ export default function DeleteSalidaModal({ open, salidas, onClose, onDeleted }:
       return;
     }
 
-    const stockMap = new Map<number, number>();
-    for (const s of salidas) {
-      stockMap.set(s.insumo_id, (stockMap.get(s.insumo_id) ?? 0) + Number(s.cantidad));
-    }
-
+    const affectedInsumos = [...new Set(salidas.map((s) => s.insumo_id))];
     const ids = salidas.map((s) => s.id);
     const { error: deleteError } = await supabase.from('salidas').delete().in('id', ids);
 
@@ -57,15 +54,8 @@ export default function DeleteSalidaModal({ open, salidas, onClose, onDeleted }:
       return;
     }
 
-    for (const [insumo_id, cantidad] of stockMap.entries()) {
-      const { data: insumo } = await supabase
-        .from('insumos').select('stock_actual').eq('id', insumo_id).single();
-      if (insumo) {
-        await supabase.from('insumos').update({
-          stock_actual: insumo.stock_actual + cantidad,
-          updated_at: new Date().toISOString(),
-        }).eq('id', insumo_id);
-      }
+    for (const insumoId of affectedInsumos) {
+      await recalcularStock(insumoId);
     }
 
     toast.success(`${ids.length} salida(s) eliminada(s) y stock restaurado`);
@@ -105,7 +95,7 @@ export default function DeleteSalidaModal({ open, salidas, onClose, onDeleted }:
                   <PackageMinus size={13} className="text-red-400 flex-shrink-0" />
                   <span className="font-medium text-gray-700 truncate flex-1">{insumo?.nombre ?? `Salida #${s.id}`}</span>
                   <span className="text-red-600 font-semibold whitespace-nowrap">
-                    -{s.cantidad} {insumo?.unidad}
+                    -{formatNumber(Number(s.cantidad))} {insumo?.unidad}
                   </span>
                   <span className="text-gray-400 whitespace-nowrap">{formatDate(s.created_at)}</span>
                   {profile?.nombre && <span className="text-gray-400 truncate max-w-20">{profile.nombre}</span>}
@@ -115,7 +105,7 @@ export default function DeleteSalidaModal({ open, salidas, onClose, onDeleted }:
           </div>
           {salidas.length > 1 && (
             <p className="text-xs text-gray-400 mt-1.5 text-right">
-              Total a restaurar en stock: <strong className="text-green-600">+{total} unidades</strong>
+              Total a restaurar en stock: <strong className="text-green-600">+{formatNumber(total)} unidades</strong>
             </p>
           )}
         </div>

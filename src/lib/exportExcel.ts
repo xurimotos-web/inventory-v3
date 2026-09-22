@@ -15,7 +15,16 @@ export function exportToExcel(data: Record<string, unknown>[], filename: string,
 }
 
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency', currency: 'COP',
+    minimumFractionDigits: 0, maximumFractionDigits: 2,
+  }).format(value);
+}
+
+export function formatNumber(value: number): string {
+  return new Intl.NumberFormat('es-CO', {
+    minimumFractionDigits: 0, maximumFractionDigits: 2,
+  }).format(value);
 }
 
 export function formatDate(dateStr: string): string {

@@ -10,16 +10,16 @@ export default function StockBadge({ insumo, showValue = false }: StockBadgeProp
   const estado = getStockEstado(insumo);
 
   const config = {
-    ok: { label: 'En stock', classes: 'bg-green-100 text-green-700 border border-green-200' },
-    bajo: { label: 'Stock bajo', classes: 'bg-amber-100 text-amber-700 border border-amber-200' },
-    agotado: { label: 'Agotado', classes: 'bg-red-100 text-red-700 border border-red-200' },
+    ok:      { label: 'En stock',   dot: 'bg-emerald-400', classes: 'bg-emerald-50 text-emerald-700 border border-emerald-200/70' },
+    bajo:    { label: 'Stock bajo', dot: 'bg-amber-400',   classes: 'bg-amber-50 text-amber-700 border border-amber-200/70' },
+    agotado: { label: 'Agotado',    dot: 'bg-rose-400',    classes: 'bg-rose-50 text-rose-700 border border-rose-200/70' },
   };
 
-  const { label, classes } = config[estado];
+  const { label, dot, classes } = config[estado];
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${classes}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${estado === 'ok' ? 'bg-green-500' : estado === 'bajo' ? 'bg-amber-500' : 'bg-red-500'}`} />
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${classes} whitespace-nowrap`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dot} flex-shrink-0`} />
       {showValue ? `${insumo.stock_actual}` : label}
     </span>
   );

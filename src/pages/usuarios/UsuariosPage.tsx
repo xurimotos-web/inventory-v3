@@ -52,22 +52,22 @@ export default function UsuariosPage() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-4 animate-fade-in-up">
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar usuario..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all duration-200"
           />
         </div>
         <button
           onClick={() => { setSelected(null); setModalOpen(true); }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/30 whitespace-nowrap"
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-violet-700 transition-all duration-150 shadow-md shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap"
         >
           <Plus size={16} />
           Nuevo Usuario
@@ -77,23 +77,23 @@ export default function UsuariosPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total usuarios', count: usuarios.length, color: 'bg-blue-50 text-blue-700' },
-          { label: 'Activos', count: usuarios.filter(u => u.activo).length, color: 'bg-green-50 text-green-700' },
-          { label: 'Administradores', count: usuarios.filter(u => u.rol === 'admin').length, color: 'bg-purple-50 text-purple-700' },
+          { label: 'Total usuarios', count: usuarios.length, bg: 'from-indigo-500 to-blue-600', shadow: 'shadow-indigo-500/20' },
+          { label: 'Activos', count: usuarios.filter(u => u.activo).length, bg: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/20' },
+          { label: 'Administradores', count: usuarios.filter(u => u.rol === 'admin').length, bg: 'from-violet-500 to-purple-600', shadow: 'shadow-violet-500/20' },
         ].map((s) => (
-          <div key={s.label} className={`rounded-xl px-4 py-3 ${s.color}`}>
-            <p className="text-xl font-bold">{s.count}</p>
-            <p className="text-xs font-medium opacity-80">{s.label}</p>
+          <div key={s.label} className={`bg-gradient-to-br ${s.bg} rounded-xl px-4 py-3 shadow-md ${s.shadow} hover:-translate-y-0.5 transition-all duration-300`}>
+            <p className="text-xl font-bold text-white">{s.count}</p>
+            <p className="text-xs font-medium text-white/70">{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
+              <tr className="border-b border-gray-100 bg-gray-50/60">
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Usuario</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Departamento</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Cargo</th>
@@ -105,15 +105,15 @@ export default function UsuariosPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((usuario) => (
-                <tr key={usuario.id} className={`hover:bg-gray-50/50 transition-colors ${!usuario.activo ? 'opacity-50' : ''}`}>
+                <tr key={usuario.id} className={`hover:bg-indigo-50/20 transition-colors duration-150 ${!usuario.activo ? 'opacity-50' : ''}`}>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-blue-700 text-sm font-semibold">{usuario.nombre.charAt(0).toUpperCase()}</span>
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-indigo-700 text-sm font-semibold">{usuario.nombre.charAt(0).toUpperCase()}</span>
                       </div>
                       <p className="font-medium text-gray-800">{usuario.nombre}</p>
                       {usuario.id === me?.id && (
-                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">Tú</span>
+                        <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">Tú</span>
                       )}
                     </div>
                   </td>
@@ -121,32 +121,32 @@ export default function UsuariosPage() {
                   <td className="px-5 py-3.5 text-gray-600">{usuario.cargo}</td>
                   <td className="px-5 py-3.5">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-                      ${usuario.rol === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                      ${usuario.rol === 'admin' ? 'bg-violet-100 text-violet-700 border border-violet-200/60' : 'bg-gray-100 text-gray-600 border border-gray-200/60'}`}>
                       {usuario.rol}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-gray-500 text-xs hidden xl:table-cell">{formatDate(usuario.created_at)}</td>
                   <td className="px-5 py-3.5">
                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
-                      ${usuario.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${usuario.activo ? 'bg-green-500' : 'bg-red-500'}`} />
+                      ${usuario.activo ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-rose-50 text-rose-700 border border-rose-200/60'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${usuario.activo ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                       {usuario.activo ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-1 justify-end">
-                      <button
-                        onClick={() => { setSelected(usuario); setModalOpen(true); }}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
+                    <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => { setSelected(usuario); setModalOpen(true); }}
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-150 active:scale-90">
                         <Edit2 size={15} />
                       </button>
                       {usuario.id !== me?.id && (
-                        <button
-                          onClick={() => setToggleTarget(usuario)}
-                          className={`p-1.5 rounded-lg transition-colors ${usuario.activo ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}
-                        >
-                          {usuario.activo ? <UserX size={15} /> : <UserCheck size={15} />}
+                        <button onClick={() => setToggleTarget(usuario)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 ${
+                            usuario.activo
+                              ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200/60'
+                              : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200/60'
+                          }`}>
+                          {usuario.activo ? <><UserX size={13} /> Desactivar</> : <><UserCheck size={13} /> Activar</>}
                         </button>
                       )}
                     </div>
@@ -167,23 +167,23 @@ export default function UsuariosPage() {
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-gray-100">
           {filtered.map((usuario) => (
-            <div key={usuario.id} className={`p-4 flex items-center gap-3 ${!usuario.activo ? 'opacity-50' : ''}`}>
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-700 font-semibold">{usuario.nombre.charAt(0).toUpperCase()}</span>
+            <div key={usuario.id} className={`p-4 flex items-center gap-3 hover:bg-indigo-50/20 transition-colors ${!usuario.activo ? 'opacity-50' : ''}`}>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-indigo-700 font-semibold">{usuario.nombre.charAt(0).toUpperCase()}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-800 text-sm">{usuario.nombre}</p>
                 <p className="text-xs text-gray-400">{usuario.cargo} — {usuario.departamento}</p>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${usuario.rol === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${usuario.rol === 'admin' ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'}`}>
                     {usuario.rol}
                   </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${usuario.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${usuario.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
                     {usuario.activo ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
               </div>
-              <button onClick={() => { setSelected(usuario); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg">
+              <button onClick={() => { setSelected(usuario); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg transition-colors active:scale-90">
                 <Edit2 size={16} />
               </button>
             </div>

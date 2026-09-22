@@ -7,8 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
-
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 export default function ReportesPage() {
@@ -52,14 +51,12 @@ export default function ReportesPage() {
   const salidasFiltradas = filterByPeriodo(salidas);
   const entradasFiltradas = filterByPeriodo(entradas);
 
-  // Consumo por departamento
   const porDept: Record<string, number> = {};
   salidasFiltradas.forEach((s) => {
     porDept[s.departamento] = (porDept[s.departamento] ?? 0) + s.cantidad;
   });
   const deptData = Object.entries(porDept).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
-  // Top insumos más usados
   const porInsumo: Record<string, { nombre: string; cantidad: number }> = {};
   salidasFiltradas.forEach((s) => {
     const nombre = (s.insumo as unknown as { nombre: string })?.nombre ?? 'Desconocido';
@@ -68,7 +65,6 @@ export default function ReportesPage() {
   });
   const topInsumos = Object.values(porInsumo).sort((a, b) => b.cantidad - a.cantidad).slice(0, 8).map((i) => ({ nombre: i.nombre.slice(0, 18), salidas: i.cantidad }));
 
-  // Stats
   const valorInventario = insumos.reduce((acc, i) => acc + i.stock_actual * i.costo_unitario, 0);
   const costoPeriodo = entradasFiltradas.reduce((acc, e) => acc + e.cantidad * e.costo_unitario, 0);
 
@@ -171,7 +167,7 @@ export default function ReportesPage() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-5 animate-fade-in-up">
       {/* Periodo selector */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm text-gray-500 font-medium">Periodo:</span>
@@ -179,7 +175,11 @@ export default function ReportesPage() {
           <button
             key={val}
             onClick={() => setPeriodo(val)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${periodo === val ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-200'}`}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 ${
+              periodo === val
+                ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/25'
+                : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-200 hover:text-indigo-600'
+            }`}
           >
             {label}
           </button>
@@ -189,24 +189,24 @@ export default function ReportesPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Salidas en periodo', value: salidasFiltradas.length, icon: TrendingDown, color: 'text-blue-600 bg-blue-50' },
-          { label: 'Entradas en periodo', value: entradasFiltradas.length, icon: BarChart3, color: 'text-green-600 bg-green-50' },
-          { label: 'Costo compras', value: formatCurrency(costoPeriodo), icon: BarChart3, color: 'text-purple-600 bg-purple-50' },
-          { label: 'Valor inventario', value: formatCurrency(valorInventario), icon: Package, color: 'text-indigo-600 bg-indigo-50' },
+          { label: 'Salidas en periodo', value: salidasFiltradas.length, icon: TrendingDown, bg: 'from-indigo-500 to-blue-600', shadow: 'shadow-indigo-500/25' },
+          { label: 'Entradas en periodo', value: entradasFiltradas.length, icon: BarChart3, bg: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/25' },
+          { label: 'Costo compras', value: formatCurrency(costoPeriodo), icon: BarChart3, bg: 'from-violet-500 to-purple-600', shadow: 'shadow-violet-500/25' },
+          { label: 'Valor inventario', value: formatCurrency(valorInventario), icon: Package, bg: 'from-rose-400 to-red-500', shadow: 'shadow-rose-500/25' },
         ].map((kpi) => (
-          <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${kpi.color}`}>
-              <kpi.icon size={16} />
+          <div key={kpi.label} className={`bg-gradient-to-br ${kpi.bg} rounded-2xl p-4 shadow-lg ${kpi.shadow} hover:-translate-y-0.5 transition-all duration-300`}>
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center mb-3">
+              <kpi.icon size={16} className="text-white" />
             </div>
-            <p className="text-xl font-bold text-gray-800">{kpi.value}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{kpi.label}</p>
+            <p className="text-xl font-bold text-white">{kpi.value}</p>
+            <p className="text-xs text-white/60 mt-0.5">{kpi.label}</p>
           </div>
         ))}
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
           <h3 className="font-semibold text-gray-800 mb-4">Top insumos más utilizados</h3>
           {topInsumos.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -214,8 +214,8 @@ export default function ReportesPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} />
                 <YAxis dataKey="nombre" type="category" tick={{ fontSize: 11, fill: '#64748b' }} width={100} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: 12 }} />
-                <Bar dataKey="salidas" fill="#3b82f6" radius={[0, 6, 6, 0]} name="Salidas" />
+                <Tooltip contentStyle={{ borderRadius: 14, border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', fontSize: 12, padding: '10px 14px' }} />
+                <Bar dataKey="salidas" fill="#6366f1" radius={[0, 7, 7, 0]} name="Salidas" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -223,7 +223,7 @@ export default function ReportesPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
           <h3 className="font-semibold text-gray-800 mb-4">Consumo por departamento</h3>
           {deptData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -233,7 +233,7 @@ export default function ReportesPage() {
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: 12 }} />
+                <Tooltip contentStyle={{ borderRadius: 14, border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', fontSize: 12, padding: '10px 14px' }} />
                 <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 12, color: '#64748b' }}>{v}</span>} />
               </PieChart>
             </ResponsiveContainer>
@@ -244,20 +244,20 @@ export default function ReportesPage() {
       </div>
 
       {/* Exportaciones rápidas */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
         <h3 className="font-semibold text-gray-800 mb-4">Exportar Reportes</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { label: 'Salidas del periodo', desc: 'Historial filtrado por periodo', action: exportSalidas },
-            { label: 'Inventario actual', desc: 'Todo el stock con costos y estado', action: exportInventario },
-            { label: 'Lista de compras', desc: 'Insumos agotados o bajo mínimo', action: exportSinStock },
+            { label: 'Salidas del periodo', desc: 'Historial filtrado por periodo', action: exportSalidas, color: 'hover:border-indigo-200 hover:bg-indigo-50/30 group-hover:text-indigo-600' },
+            { label: 'Inventario actual', desc: 'Todo el stock con costos y estado', action: exportInventario, color: 'hover:border-emerald-200 hover:bg-emerald-50/30 group-hover:text-emerald-600' },
+            { label: 'Lista de compras', desc: 'Insumos agotados o bajo mínimo', action: exportSinStock, color: 'hover:border-rose-200 hover:bg-rose-50/30 group-hover:text-rose-600' },
           ].map((exp) => (
             <button
               key={exp.label}
               onClick={exp.action}
-              className="flex items-start gap-3 p-4 border border-gray-100 rounded-xl hover:border-blue-200 hover:bg-blue-50/30 transition-all text-left group"
+              className={`flex items-start gap-3 p-4 border border-gray-100 rounded-xl transition-all duration-200 text-left group active:scale-[0.98] ${exp.color}`}
             >
-              <Download size={16} className="text-gray-400 group-hover:text-blue-600 mt-0.5 flex-shrink-0" />
+              <Download size={16} className="text-gray-400 group-hover:scale-110 mt-0.5 flex-shrink-0 transition-all duration-200" />
               <div>
                 <p className="text-sm font-medium text-gray-800">{exp.label}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{exp.desc}</p>
@@ -267,52 +267,47 @@ export default function ReportesPage() {
         </div>
       </div>
 
-      {/* Reporte de salidas por fecha (admin) */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      {/* Reporte de salidas por fecha */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
         <div className="flex items-center gap-2 mb-4">
-          <Calendar size={18} className="text-blue-600" />
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+            <Calendar size={15} className="text-indigo-600" />
+          </div>
           <h3 className="font-semibold text-gray-800">Reporte de Salidas por Fecha</h3>
         </div>
 
-        {/* Selector tipo de filtro */}
         <div className="flex gap-2 mb-4 flex-wrap">
           {([['mes', 'Por mes'], ['anio', 'Por año'], ['rango', 'Rango de fechas']] as const).map(([val, label]) => (
             <button
               key={val}
               onClick={() => setFiltroTipo(val)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${filtroTipo === val ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 ${
+                filtroTipo === val
+                  ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/25'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
             >
               {label}
             </button>
           ))}
         </div>
 
-        {/* Filtros según tipo */}
         <div className="flex flex-wrap gap-3 mb-4">
           {filtroTipo === 'mes' && (
             <>
-              <select
-                value={filtroMes}
-                onChange={(e) => setFiltroMes(Number(e.target.value))}
-                className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
+              <select value={filtroMes} onChange={(e) => setFiltroMes(Number(e.target.value))}
+                className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 bg-white cursor-pointer">
                 {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
-              <select
-                value={filtroAnio}
-                onChange={(e) => setFiltroAnio(Number(e.target.value))}
-                className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
+              <select value={filtroAnio} onChange={(e) => setFiltroAnio(Number(e.target.value))}
+                className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 bg-white cursor-pointer">
                 {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </>
           )}
           {filtroTipo === 'anio' && (
-            <select
-              value={filtroAnio}
-              onChange={(e) => setFiltroAnio(Number(e.target.value))}
-              className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
+            <select value={filtroAnio} onChange={(e) => setFiltroAnio(Number(e.target.value))}
+              className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 bg-white cursor-pointer">
               {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           )}
@@ -320,34 +315,26 @@ export default function ReportesPage() {
             <>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">Desde:</span>
-                <input
-                  type="date"
-                  value={fechaDesde}
-                  onChange={(e) => setFechaDesde(e.target.value)}
-                  className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)}
+                  className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400" />
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">Hasta:</span>
-                <input
-                  type="date"
-                  value={fechaHasta}
-                  onChange={(e) => setFechaHasta(e.target.value)}
-                  className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)}
+                  className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400" />
               </div>
             </>
           )}
         </div>
 
-        <div className="bg-blue-50 rounded-xl p-3 mb-4 text-xs text-blue-700">
+        <div className="bg-indigo-50/60 border border-indigo-100/60 rounded-xl p-3 mb-4 text-xs text-indigo-700">
           El Excel incluirá: Fecha, Insumo, Cantidad, Unidad, Registrado por, Departamento, Cargo, Observaciones.
         </div>
 
         <button
           onClick={exportSalidasFecha}
           disabled={exportando}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60"
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-violet-700 transition-all duration-150 shadow-md shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60"
         >
           <FileDown size={16} />
           {exportando ? 'Generando...' : 'Exportar Excel'}

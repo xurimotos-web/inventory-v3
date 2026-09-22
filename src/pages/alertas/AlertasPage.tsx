@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Download, Package } from 'lucide-react';
+import { AlertTriangle, Download, Package, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Insumo } from '../../types';
 import { getStockEstado } from '../../types';
-import { formatCurrency, exportToExcel } from '../../lib/exportExcel';
+import { formatCurrency, exportToExcel, formatNumber } from '../../lib/exportExcel';
 import StockBadge from '../../components/shared/StockBadge';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 export default function AlertasPage() {
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [collapsedAgotados, setCollapsedAgotados] = useState(false);
+  const [collapsedBajos, setCollapsedBajos] = useState(false);
 
   useEffect(() => {
     supabase.from('insumos')
@@ -77,31 +79,37 @@ export default function AlertasPage() {
   const bajos = insumos.filter((i) => getStockEstado(i) === 'bajo');
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-5 animate-fade-in-up">
       {/* Header con stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle size={16} className="text-red-600" />
-            <p className="text-xs font-semibold text-red-600 uppercase">Agotados</p>
+        <div className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-5 shadow-lg shadow-rose-500/25 hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
+              <AlertTriangle size={14} className="text-white" />
+            </div>
+            <p className="text-xs font-semibold text-white/80 uppercase tracking-wide">Agotados</p>
           </div>
-          <p className="text-3xl font-bold text-red-700">{agotados.length}</p>
-          <p className="text-xs text-red-500 mt-1">insumos sin stock</p>
+          <p className="text-4xl font-bold text-white">{agotados.length}</p>
+          <p className="text-xs text-white/60 mt-1">insumos sin stock</p>
         </div>
-        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle size={16} className="text-amber-600" />
-            <p className="text-xs font-semibold text-amber-600 uppercase">Stock Bajo</p>
+
+        <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-5 shadow-lg shadow-amber-500/25 hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
+              <AlertTriangle size={14} className="text-white" />
+            </div>
+            <p className="text-xs font-semibold text-white/80 uppercase tracking-wide">Stock Bajo</p>
           </div>
-          <p className="text-3xl font-bold text-amber-700">{bajos.length}</p>
-          <p className="text-xs text-amber-500 mt-1">insumos bajo mínimo</p>
+          <p className="text-4xl font-bold text-white">{bajos.length}</p>
+          <p className="text-xs text-white/60 mt-1">insumos bajo mínimo</p>
         </div>
-        <div className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-col justify-between gap-2">
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Exportar</p>
+
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-3 hover:shadow-md transition-shadow duration-300">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Exportar</p>
           <button
             onClick={handleExport}
             disabled={insumos.length === 0}
-            className="flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-800 text-white rounded-xl text-sm font-medium hover:bg-gray-900 transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-xl text-sm font-medium hover:from-slate-800 hover:to-slate-900 transition-all duration-150 disabled:opacity-50 shadow-sm active:scale-95"
           >
             <Download size={15} />
             Lista de compras
@@ -109,7 +117,7 @@ export default function AlertasPage() {
           <button
             onClick={handleExportSinStock}
             disabled={agotados.length === 0}
-            className="flex items-center justify-center gap-2 py-2.5 px-4 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-rose-500 to-red-600 text-white rounded-xl text-sm font-medium hover:from-rose-600 hover:to-red-700 transition-all duration-150 disabled:opacity-50 shadow-sm shadow-rose-500/25 active:scale-95"
           >
             <Download size={15} />
             Solo sin stock ({agotados.length})
@@ -119,8 +127,8 @@ export default function AlertasPage() {
 
       {insumos.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center">
-          <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-4">
-            <Package className="text-green-500" size={28} />
+          <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+            <Package className="text-emerald-500" size={28} />
           </div>
           <p className="text-gray-700 font-semibold">¡Inventario en buen estado!</p>
           <p className="text-gray-400 text-sm mt-1">Todos los insumos están por encima del stock mínimo</p>
@@ -128,30 +136,42 @@ export default function AlertasPage() {
       ) : (
         <>
           {agotados.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-red-50 bg-red-50/50 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500" />
-                <h2 className="text-sm font-semibold text-red-700">Insumos Agotados ({agotados.length})</h2>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {agotados.map((insumo) => (
-                  <AlertRow key={insumo.id} insumo={insumo} />
-                ))}
-              </div>
+            <div className="bg-white rounded-2xl border border-rose-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
+              <button
+                onClick={() => setCollapsedAgotados(!collapsedAgotados)}
+                className="w-full px-5 py-3.5 border-b border-rose-50 bg-gradient-to-r from-rose-50 to-red-50 flex items-center gap-2 hover:from-rose-100 hover:to-red-100 transition-colors duration-150 cursor-pointer"
+              >
+                <div className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0" />
+                <h2 className="text-sm font-semibold text-rose-700 flex-1 text-left">Insumos Agotados ({agotados.length})</h2>
+                {collapsedAgotados ? <ChevronDown size={16} className="text-rose-400" /> : <ChevronUp size={16} className="text-rose-400" />}
+              </button>
+              {!collapsedAgotados && (
+                <div className="divide-y divide-gray-50">
+                  {agotados.map((insumo) => (
+                    <AlertRow key={insumo.id} insumo={insumo} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {bajos.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-amber-50 bg-amber-50/50 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-amber-500" />
-                <h2 className="text-sm font-semibold text-amber-700">Stock Bajo ({bajos.length})</h2>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {bajos.map((insumo) => (
-                  <AlertRow key={insumo.id} insumo={insumo} />
-                ))}
-              </div>
+            <div className="bg-white rounded-2xl border border-amber-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
+              <button
+                onClick={() => setCollapsedBajos(!collapsedBajos)}
+                className="w-full px-5 py-3.5 border-b border-amber-50 bg-gradient-to-r from-amber-50 to-orange-50 flex items-center gap-2 hover:from-amber-100 hover:to-orange-100 transition-colors duration-150 cursor-pointer"
+              >
+                <div className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
+                <h2 className="text-sm font-semibold text-amber-700 flex-1 text-left">Stock Bajo ({bajos.length})</h2>
+                {collapsedBajos ? <ChevronDown size={16} className="text-amber-400" /> : <ChevronUp size={16} className="text-amber-400" />}
+              </button>
+              {!collapsedBajos && (
+                <div className="divide-y divide-gray-50">
+                  {bajos.map((insumo) => (
+                    <AlertRow key={insumo.id} insumo={insumo} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </>
@@ -164,11 +184,11 @@ function AlertRow({ insumo }: { insumo: Insumo }) {
   const cat = insumo.categoria as unknown as { nombre: string };
   const falta = Math.max(0, insumo.stock_minimo - insumo.stock_actual);
   return (
-    <div className="px-5 py-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
+    <div className="px-5 py-4 flex items-center gap-4 hover:bg-gray-50/60 transition-colors duration-150">
       {insumo.imagen_url ? (
-        <img src={insumo.imagen_url} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+        <img src={insumo.imagen_url} alt="" className="w-10 h-10 rounded-xl object-cover bg-gray-100 flex-shrink-0" />
       ) : (
-        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
           <Package size={16} className="text-gray-400" />
         </div>
       )}
@@ -178,9 +198,9 @@ function AlertRow({ insumo }: { insumo: Insumo }) {
           {cat?.nombre && <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{cat.nombre}</span>}
         </div>
         <div className="flex items-center gap-3 mt-1">
-          <p className="text-xs text-gray-500">Stock: <strong>{insumo.stock_actual}</strong> / mín {insumo.stock_minimo} {insumo.unidad}</p>
+          <p className="text-xs text-gray-500">Stock: <strong className="text-gray-700">{formatNumber(insumo.stock_actual)}</strong> / mín {formatNumber(insumo.stock_minimo)} {insumo.unidad}</p>
           {falta > 0 && (
-            <p className="text-xs text-orange-600 font-medium">Comprar: +{falta} {insumo.unidad}</p>
+            <p className="text-xs text-orange-600 font-semibold">Comprar: +{formatNumber(falta)} {insumo.unidad}</p>
           )}
         </div>
       </div>

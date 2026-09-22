@@ -25,64 +25,77 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
-      {/* Background decoration */}
+    <div className="min-h-screen bg-[#030712] flex items-center justify-center p-4 overflow-hidden relative">
+      {/* Animated background blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-600/20 rounded-full blur-3xl" />
+        <div className="animate-blob absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[80px]" />
+        <div className="animate-blob animation-delay-2000 absolute top-[40%] left-[-10%] w-[450px] h-[450px] bg-violet-600/15 rounded-full blur-[80px]" />
+        <div className="animate-blob animation-delay-4000 absolute bottom-[-10%] right-[20%] w-[400px] h-[400px] bg-blue-600/15 rounded-full blur-[80px]" />
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
+          backgroundSize: '40px 40px'
+        }} />
       </div>
 
-      <div className="relative w-full max-w-md">
+      <div className="relative w-full max-w-md animate-fade-in-up">
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-white/[0.04] backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl shadow-black/60 overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 pt-8 pb-10 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/20 backdrop-blur mb-4">
-              <Boxes className="text-white" size={26} />
+          <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 px-8 pt-9 pb-11 text-center relative overflow-hidden">
+            <div className="absolute inset-0 opacity-20"
+              style={{ backgroundImage: 'radial-gradient(circle at 50% 120%, rgba(255,255,255,0.4) 0%, transparent 60%)' }} />
+            <div className="relative">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/15 backdrop-blur mb-4 shadow-lg shadow-indigo-900/30 ring-1 ring-white/20">
+                <Boxes className="text-white" size={28} />
+              </div>
+              <h1 className="text-white text-2xl font-bold tracking-tight">InventarioV3</h1>
+              <p className="text-indigo-200/80 text-sm mt-1 font-medium">Sistema de Gestión de Inventarios</p>
             </div>
-            <h1 className="text-white text-2xl font-bold">InventarioV3</h1>
-            <p className="text-blue-200 text-sm mt-1">Sistema de Gestión de Inventarios</p>
           </div>
 
+          {/* Pull-up effect */}
+          <div className="h-5 bg-white rounded-t-3xl -mt-5 relative z-10" />
+
           {/* Form */}
-          <form onSubmit={handleSubmit} className="px-8 py-8 space-y-5">
+          <form onSubmit={handleSubmit} className="bg-white px-8 pb-8 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Correo electrónico
               </label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <div className="relative group">
+                <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@correo.com"
                   required
-                  className="w-full pl-9 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all duration-200 bg-gray-50/50 placeholder:text-gray-300"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Contraseña
               </label>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <div className="relative group">
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                 <input
                   type={showPass ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full pl-9 pr-10 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all duration-200 bg-gray-50/50 placeholder:text-gray-300"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
             </div>
@@ -90,7 +103,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40"
+              className="w-full py-3.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5 active:translate-y-0 mt-2"
             >
               {submitting ? (
                 <>
@@ -103,14 +116,14 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="px-8 pb-6 text-center">
+          <div className="bg-white px-8 pb-7 text-center">
             <p className="text-xs text-gray-400">
               Contacta al administrador si olvidaste tu contraseña
             </p>
           </div>
         </div>
 
-        <p className="text-center text-white/30 text-xs mt-6">
+        <p className="text-center text-white/20 text-xs mt-5">
           InventarioV3 © {new Date().getFullYear()}
         </p>
       </div>

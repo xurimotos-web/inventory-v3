@@ -59,6 +59,7 @@ export interface Insumo {
   stock_minimo: number;
   costo_unitario: number;
   imagen_url?: string;
+  rotacion?: 'alta' | 'baja' | null;
   activo: boolean;
   created_at: string;
   updated_at: string;
@@ -92,6 +93,7 @@ export interface Salida {
   destino?: string;
   entregado_a?: string;
   observaciones?: string;
+  es_asignacion?: boolean;
   created_at: string;
 }
 

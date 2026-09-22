@@ -5,6 +5,8 @@ import type { Insumo } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { FileUp, X, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatNumber } from '../../lib/exportExcel';
+import { recalcularStock } from '../../lib/stockUtils';
 
 interface EntradaModalProps {
   open: boolean;
@@ -27,9 +29,10 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!open) return;
     supabase.from('insumos').select('*, categoria:categorias(nombre)').eq('activo', true).order('nombre')
       .then(({ data }) => setInsumos(data ?? []));
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     if (open) { setForm({ ...EMPTY }); setFacturaFile(null); }
@@ -82,13 +85,7 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
 
     if (entradaError) { toast.error('Error al registrar la entrada'); setSaving(false); return; }
 
-    const insumo = insumos.find((i) => i.id === Number(form.insumo_id));
-    if (insumo) {
-      await supabase.from('insumos').update({
-        stock_actual: insumo.stock_actual + Number(form.cantidad),
-        updated_at: new Date().toISOString(),
-      }).eq('id', insumo.id);
-    }
+    await recalcularStock(Number(form.insumo_id));
 
     toast.success('Entrada registrada y stock actualizado');
     onSaved(); onClose();
@@ -125,8 +122,8 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
 
         {selectedInsumo && (
           <div className="bg-green-50 rounded-xl p-3 text-sm">
-            <p className="text-green-700 font-medium">Stock actual: <strong>{selectedInsumo.stock_actual} {selectedInsumo.unidad}</strong></p>
-            <p className="text-green-600 text-xs mt-0.5">Stock mínimo: {selectedInsumo.stock_minimo} {selectedInsumo.unidad}</p>
+            <p className="text-green-700 font-medium">Stock actual: <strong>{formatNumber(selectedInsumo.stock_actual)} {selectedInsumo.unidad}</strong></p>
+            <p className="text-green-600 text-xs mt-0.5">Stock mínimo: {formatNumber(selectedInsumo.stock_minimo)} {selectedInsumo.unidad}</p>
           </div>
         )}
 

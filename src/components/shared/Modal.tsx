@@ -30,14 +30,14 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size]} animate-slide-in max-h-[90vh] flex flex-col`}>
+      <div className={`relative bg-white rounded-2xl shadow-2xl shadow-black/20 w-full ${sizeClasses[size]} animate-scale-in max-h-[90vh] flex flex-col border border-gray-100`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
+          <h2 className="text-base font-semibold text-gray-800 tracking-tight">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-150 active:scale-90"
           >
-            <X size={18} />
+            <X size={17} />
           </button>
         </div>
         <div className="overflow-y-auto flex-1 p-6">

@@ -7,6 +7,8 @@ import StockBadge from '../../components/shared/StockBadge';
 import ImageLightbox from '../../components/shared/ImageLightbox';
 import { Package, ZoomIn, CheckCircle, User, Building2, Briefcase, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatNumber } from '../../lib/exportExcel';
+import { recalcularStock } from '../../lib/stockUtils';
 
 interface SalidaModalProps {
   open: boolean;
@@ -71,6 +73,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
       area: form.area || null,
       destino: form.destino || null,
       observaciones: form.observaciones.trim() || null,
+      es_asignacion: false,
     });
 
     if (error) {
@@ -80,10 +83,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
       return;
     }
 
-    await supabase.from('insumos').update({
-      stock_actual: insumo.stock_actual - cantidad,
-      updated_at: new Date().toISOString(),
-    }).eq('id', insumo.id);
+    await recalcularStock(Number(form.insumo_id));
 
     setSaving(false);
     setSaved(true);
@@ -234,12 +234,12 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
                     <StockBadge insumo={selectedInsumo} />
                   </div>
                   <p className="text-sm text-gray-600 mt-1">
-                    Disponible: <strong>{selectedInsumo.stock_actual}</strong> {selectedInsumo.unidad}
+                    Disponible: <strong>{formatNumber(selectedInsumo.stock_actual)}</strong> {selectedInsumo.unidad}
                   </p>
                   {nuevoCantidad !== null && form.cantidad && (
                     <p className="text-xs mt-1">
                       Quedará: <strong className={nuevoCantidad < selectedInsumo.stock_minimo ? 'text-red-600' : 'text-green-600'}>
-                        {nuevoCantidad} {selectedInsumo.unidad}
+                        {formatNumber(nuevoCantidad)} {selectedInsumo.unidad}
                       </strong>
                     </p>
                   )}
