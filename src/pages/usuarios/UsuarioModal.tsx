@@ -15,7 +15,7 @@ interface UsuarioModalProps {
 
 const EMPTY = {
   nombre: '', email: '', password: '', departamento: '',
-  cargo: '', rol: 'usuario' as 'admin' | 'usuario',
+  cargo: '', rol: 'usuario' as 'admin' | 'usuario', activo: true,
 };
 
 async function adminChangePassword(userId: string, newPassword: string): Promise<string | null> {
@@ -58,6 +58,7 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
         departamento: usuario.departamento,
         cargo: usuario.cargo,
         rol: usuario.rol,
+        activo: usuario.activo,
       });
     } else {
       setForm({ ...EMPTY });
@@ -87,6 +88,7 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
         departamento: form.departamento.trim(),
         cargo: form.cargo.trim(),
         rol: form.rol,
+        activo: isSelf ? undefined : form.activo,
       }).eq('id', usuario!.id);
 
       if (error) { toast.error('Error al actualizar el usuario'); setSaving(false); return; }
@@ -228,6 +230,35 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
             ))}
           </div>
         </div>
+
+        {/* Estado activo/inactivo — solo al editar y no uno mismo */}
+        {isEdit && !isSelf && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Estado del usuario</label>
+            <button
+              type="button"
+              onClick={() => setForm((prev) => ({ ...prev, activo: !prev.activo }))}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-200
+                ${form.activo
+                  ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                  : 'border-rose-300 bg-rose-50 text-rose-700'
+                }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full flex-shrink-0 ${form.activo ? 'bg-emerald-500' : 'bg-rose-400'}`} />
+                <div className="text-left">
+                  <p className="text-sm font-semibold">{form.activo ? 'Activo' : 'Inactivo'}</p>
+                  <p className="text-xs opacity-70 mt-0.5">
+                    {form.activo ? 'El usuario puede iniciar sesión' : 'El usuario no puede acceder al sistema'}
+                  </p>
+                </div>
+              </div>
+              <div className={`w-11 h-6 rounded-full transition-all duration-300 relative flex-shrink-0 ${form.activo ? 'bg-emerald-500' : 'bg-rose-400'}`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${form.activo ? 'left-5' : 'left-0.5'}`} />
+              </div>
+            </button>
+          </div>
+        )}
 
         {/* Cambiar contraseña al editar */}
         {isEdit && (

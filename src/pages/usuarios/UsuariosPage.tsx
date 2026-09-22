@@ -183,9 +183,19 @@ export default function UsuariosPage() {
                   </span>
                 </div>
               </div>
-              <button onClick={() => { setSelected(usuario); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg transition-colors active:scale-90">
-                <Edit2 size={16} />
-              </button>
+              <div className="flex flex-col gap-1.5">
+                <button onClick={() => { setSelected(usuario); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg transition-colors active:scale-90">
+                  <Edit2 size={16} />
+                </button>
+                {usuario.id !== me?.id && (
+                  <button onClick={() => setToggleTarget(usuario)}
+                    className={`p-1.5 rounded-lg transition-colors active:scale-90 ${
+                      usuario.activo ? 'text-rose-400 hover:text-rose-600 hover:bg-rose-50' : 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50'
+                    }`}>
+                    {usuario.activo ? <UserX size={16} /> : <UserCheck size={16} />}
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
