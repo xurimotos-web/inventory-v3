@@ -15,8 +15,9 @@ import toast from 'react-hot-toast';
 import { formatCurrency, formatNumber } from '../../lib/exportExcel';
 
 export default function InsumosPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [userStock, setUserStock] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<'todos' | 'ok' | 'bajo' | 'agotado'>('todos');
@@ -38,7 +39,24 @@ export default function InsumosPage() {
       .eq('activo', true)
       .order('nombre');
     setInsumos(data ?? []);
+
+    if (!isAdmin && user) {
+      const { data: salidas } = await supabase
+        .from('salidas')
+        .select('insumo_id, cantidad, es_asignacion')
+        .eq('usuario_id', user.id);
+      const map: Record<number, number> = {};
+      for (const s of salidas ?? []) {
+        map[s.insumo_id] = (map[s.insumo_id] ?? 0) + (s.es_asignacion ? s.cantidad : -s.cantidad);
+      }
+      setUserStock(map);
+    }
+
     setLoading(false);
+  }
+
+  function getDisplayStock(insumo: Insumo): number {
+    return isAdmin ? insumo.stock_actual : Math.max(0, userStock[insumo.id] ?? 0);
   }
 
   async function handleDelete() {
@@ -59,14 +77,20 @@ export default function InsumosPage() {
     setLightbox({ src, alt });
   }
 
-  const filtered = insumos.filter((i) => {
+  // Para usuarios no-admin: solo insumos con stock asignado > 0
+  const visibleInsumos = isAdmin
+    ? insumos
+    : insumos.filter((i) => (userStock[i.id] ?? 0) > 0);
+
+  const filtered = visibleInsumos.filter((i) => {
     const q = search.toLowerCase();
     const matchSearch = i.nombre.toLowerCase().includes(q) ||
       (i.descripcion ?? '').toLowerCase().includes(q) ||
       (i.codigo ?? '').toLowerCase().includes(q) ||
       (i.referencia ?? '').toLowerCase().includes(q);
     if (filtroEstado === 'todos') return matchSearch;
-    const estado = i.stock_actual <= 0 ? 'agotado' : i.stock_actual <= i.stock_minimo ? 'bajo' : 'ok';
+    const stockVal = getDisplayStock(i);
+    const estado = stockVal <= 0 ? 'agotado' : stockVal <= i.stock_minimo ? 'bajo' : 'ok';
     return matchSearch && estado === filtroEstado;
   });
 
@@ -87,51 +111,73 @@ export default function InsumosPage() {
     <div className="space-y-5 animate-fade-in-up">
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl p-4 shadow-lg shadow-indigo-500/25 hover:-translate-y-0.5 transition-all duration-300">
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-              <Boxes size={16} className="text-white" />
+      {isAdmin ? (
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl p-4 shadow-lg shadow-indigo-500/25 hover:-translate-y-0.5 transition-all duration-300">
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                <Boxes size={16} className="text-white" />
+              </div>
+              <span className="text-white/60 text-xs font-medium">Catálogo</span>
             </div>
-            <span className="text-white/60 text-xs font-medium">Catálogo</span>
+            <p className="text-3xl font-bold text-white">{insumos.length}</p>
+            <p className="text-xs text-white/60 mt-0.5">insumos activos</p>
           </div>
-          <p className="text-3xl font-bold text-white">{insumos.length}</p>
-          <p className="text-xs text-white/60 mt-0.5">insumos activos</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl p-4 shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5 transition-all duration-300">
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-              <TrendingUp size={16} className="text-white" />
+          <div className="bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl p-4 shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5 transition-all duration-300">
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                <TrendingUp size={16} className="text-white" />
+              </div>
+              <span className="text-white/60 text-xs font-medium">Valor</span>
             </div>
-            <span className="text-white/60 text-xs font-medium">Valor</span>
+            <p className="text-xl font-bold text-white leading-tight">{formatCurrency(totalValor)}</p>
+            <p className="text-xs text-white/60 mt-0.5">valor total en bodega</p>
           </div>
-          <p className="text-xl font-bold text-white leading-tight">{formatCurrency(totalValor)}</p>
-          <p className="text-xs text-white/60 mt-0.5">valor total en bodega</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-4 shadow-lg shadow-amber-500/25 hover:-translate-y-0.5 transition-all duration-300">
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-              <AlertTriangle size={16} className="text-white" />
+          <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-4 shadow-lg shadow-amber-500/25 hover:-translate-y-0.5 transition-all duration-300">
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                <AlertTriangle size={16} className="text-white" />
+              </div>
+              <span className="text-white/60 text-xs font-medium">Bajo mínimo</span>
             </div>
-            <span className="text-white/60 text-xs font-medium">Bajo mínimo</span>
+            <p className="text-3xl font-bold text-white">{countBajo}</p>
+            <p className="text-xs text-white/60 mt-0.5">con stock bajo</p>
           </div>
-          <p className="text-3xl font-bold text-white">{countBajo}</p>
-          <p className="text-xs text-white/60 mt-0.5">con stock bajo</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-4 shadow-lg shadow-rose-500/25 hover:-translate-y-0.5 transition-all duration-300">
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-              <Package size={16} className="text-white" />
+          <div className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-4 shadow-lg shadow-rose-500/25 hover:-translate-y-0.5 transition-all duration-300">
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                <Package size={16} className="text-white" />
+              </div>
+              <span className="text-white/60 text-xs font-medium">Sin stock</span>
             </div>
-            <span className="text-white/60 text-xs font-medium">Sin stock</span>
+            <p className="text-3xl font-bold text-white">{countAgotado}</p>
+            <p className="text-xs text-white/60 mt-0.5">insumos agotados</p>
           </div>
-          <p className="text-3xl font-bold text-white">{countAgotado}</p>
-          <p className="text-xs text-white/60 mt-0.5">insumos agotados</p>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl p-4 shadow-lg shadow-indigo-500/25">
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                <Boxes size={16} className="text-white" />
+              </div>
+              <span className="text-white/60 text-xs font-medium">Mis insumos</span>
+            </div>
+            <p className="text-3xl font-bold text-white">{visibleInsumos.length}</p>
+            <p className="text-xs text-white/60 mt-0.5">insumos asignados</p>
+          </div>
+          <div className="bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl p-4 shadow-lg shadow-emerald-500/25">
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                <Package size={16} className="text-white" />
+              </div>
+              <span className="text-white/60 text-xs font-medium">Con disponibilidad</span>
+            </div>
+            <p className="text-3xl font-bold text-white">{visibleInsumos.filter(i => (userStock[i.id] ?? 0) > 0).length}</p>
+            <p className="text-xs text-white/60 mt-0.5">insumos disponibles</p>
+          </div>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -197,9 +243,9 @@ export default function InsumosPage() {
               <tr className="border-b border-gray-100 bg-gradient-to-r from-gray-50/80 to-gray-50/40">
                 <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Insumo</th>
                 <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Categoría</th>
-                <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Stock</th>
-                <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Costo unit.</th>
-                <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden xl:table-cell">Valor total</th>
+                <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{isAdmin ? 'Stock' : 'Mi stock'}</th>
+                {isAdmin && <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Costo unit.</th>}
+                {isAdmin && <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden xl:table-cell">Valor total</th>}
                 <th className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Estado</th>
                 <th className="px-5 py-4" />
               </tr>
@@ -207,8 +253,9 @@ export default function InsumosPage() {
             <tbody className="divide-y divide-gray-50/80">
               {filtered.map((insumo) => {
                 const cat = insumo.categoria as unknown as { nombre: string };
-                const pct = insumo.stock_minimo > 0 ? Math.min(100, Math.round((insumo.stock_actual / (insumo.stock_minimo * 2)) * 100)) : 100;
-                const barColor = insumo.stock_actual <= 0 ? 'bg-rose-400' : insumo.stock_actual <= insumo.stock_minimo ? 'bg-amber-400' : 'bg-emerald-400';
+                const displayStock = getDisplayStock(insumo);
+                const pct = insumo.stock_minimo > 0 ? Math.min(100, Math.round((displayStock / (insumo.stock_minimo * 2)) * 100)) : 100;
+                const barColor = displayStock <= 0 ? 'bg-rose-400' : displayStock <= insumo.stock_minimo ? 'bg-amber-400' : 'bg-emerald-400';
                 return (
                   <tr key={insumo.id} className="hover:bg-indigo-50/20 transition-colors duration-150 group">
                     <td className="px-5 py-4">
@@ -254,9 +301,9 @@ export default function InsumosPage() {
                     <td className="px-5 py-4">
                       <div className="space-y-1.5 min-w-[100px]">
                         <div className="flex items-baseline gap-1.5">
-                          <span className="font-bold text-gray-800 text-base leading-none">{formatNumber(insumo.stock_actual)}</span>
+                          <span className="font-bold text-gray-800 text-base leading-none">{formatNumber(displayStock)}</span>
                           <span className="text-xs text-gray-400">{insumo.unidad}</span>
-                          <span className="text-xs text-gray-300 ml-1">/ mín {formatNumber(insumo.stock_minimo)}</span>
+                          {isAdmin && <span className="text-xs text-gray-300 ml-1">/ mín {formatNumber(insumo.stock_minimo)}</span>}
                         </div>
                         <div className="w-24 bg-gray-100 rounded-full h-1.5 overflow-hidden">
                           <div
@@ -266,12 +313,16 @@ export default function InsumosPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-gray-600 hidden lg:table-cell">
-                      <span className="font-medium">{formatCurrency(insumo.costo_unitario)}</span>
-                    </td>
-                    <td className="px-5 py-4 hidden xl:table-cell">
-                      <span className="font-semibold text-gray-700">{formatCurrency(insumo.stock_actual * insumo.costo_unitario)}</span>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-5 py-4 text-gray-600 hidden lg:table-cell">
+                        <span className="font-medium">{formatCurrency(insumo.costo_unitario)}</span>
+                      </td>
+                    )}
+                    {isAdmin && (
+                      <td className="px-5 py-4 hidden xl:table-cell">
+                        <span className="font-semibold text-gray-700">{formatCurrency(insumo.stock_actual * insumo.costo_unitario)}</span>
+                      </td>
+                    )}
                     <td className="px-5 py-4"><StockBadge insumo={insumo} /></td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1 justify-end">
@@ -342,8 +393,9 @@ export default function InsumosPage() {
         <div className="md:hidden divide-y divide-gray-50">
           {filtered.map((insumo) => {
             const cat = insumo.categoria as unknown as { nombre: string };
-            const pct = insumo.stock_minimo > 0 ? Math.min(100, Math.round((insumo.stock_actual / (insumo.stock_minimo * 2)) * 100)) : 100;
-            const barColor = insumo.stock_actual <= 0 ? 'bg-rose-400' : insumo.stock_actual <= insumo.stock_minimo ? 'bg-amber-400' : 'bg-emerald-400';
+            const displayStock = getDisplayStock(insumo);
+            const pct = insumo.stock_minimo > 0 ? Math.min(100, Math.round((displayStock / (insumo.stock_minimo * 2)) * 100)) : 100;
+            const barColor = displayStock <= 0 ? 'bg-rose-400' : displayStock <= insumo.stock_minimo ? 'bg-amber-400' : 'bg-emerald-400';
             return (
               <div key={insumo.id} className="p-4 hover:bg-indigo-50/10 transition-colors">
                 <div className="flex items-start gap-3">
@@ -376,15 +428,18 @@ export default function InsumosPage() {
                     </div>
                     <div className="mt-2 space-y-1">
                       <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>Stock: <strong className="text-gray-700">{formatNumber(insumo.stock_actual)}</strong> {insumo.unidad}</span>
-                        <span className="text-gray-400">mín {formatNumber(insumo.stock_minimo)}</span>
+                        <span>{isAdmin ? 'Stock' : 'Mi stock'}: <strong className="text-gray-700">{formatNumber(displayStock)}</strong> {insumo.unidad}</span>
+                        {isAdmin && <span className="text-gray-400">mín {formatNumber(insumo.stock_minimo)}</span>}
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
                         <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                     <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs text-gray-400">{formatCurrency(insumo.costo_unitario)} / {insumo.unidad}</span>
+                      {isAdmin
+                        ? <span className="text-xs text-gray-400">{formatCurrency(insumo.costo_unitario)} / {insumo.unidad}</span>
+                        : <span className="text-xs text-gray-400">{insumo.unidad}</span>
+                      }
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => setViewInsumo(insumo)}
@@ -446,8 +501,9 @@ export default function InsumosPage() {
       {/* Modal detalle */}
       <Modal open={!!viewInsumo} onClose={() => setViewInsumo(null)} title="Detalle del Insumo" size="md">
         {viewInsumo && (() => {
-          const pct = viewInsumo.stock_minimo > 0 ? Math.min(100, Math.round((viewInsumo.stock_actual / (viewInsumo.stock_minimo * 2)) * 100)) : 100;
-          const barColor = viewInsumo.stock_actual <= 0 ? 'bg-rose-400' : viewInsumo.stock_actual <= viewInsumo.stock_minimo ? 'bg-amber-400' : 'bg-emerald-400';
+          const detailStock = getDisplayStock(viewInsumo);
+          const pct = viewInsumo.stock_minimo > 0 ? Math.min(100, Math.round((detailStock / (viewInsumo.stock_minimo * 2)) * 100)) : 100;
+          const barColor = detailStock <= 0 ? 'bg-rose-400' : detailStock <= viewInsumo.stock_minimo ? 'bg-amber-400' : 'bg-emerald-400';
           return (
             <div className="space-y-4">
               {viewInsumo.imagen_url ? (
@@ -482,9 +538,9 @@ export default function InsumosPage() {
                   <StockBadge insumo={viewInsumo} />
                 </div>
                 <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-2xl font-bold text-gray-800">{formatNumber(viewInsumo.stock_actual)}</span>
+                  <span className="text-2xl font-bold text-gray-800">{formatNumber(detailStock)}</span>
                   <span className="text-sm text-gray-400">{viewInsumo.unidad}</span>
-                  <span className="text-xs text-gray-300 ml-1">/ mínimo {formatNumber(viewInsumo.stock_minimo)} {viewInsumo.unidad}</span>
+                  {isAdmin && <span className="text-xs text-gray-300 ml-1">/ mínimo {formatNumber(viewInsumo.stock_minimo)} {viewInsumo.unidad}</span>}
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                   <div className={`h-2 rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${pct}%` }} />
@@ -496,8 +552,10 @@ export default function InsumosPage() {
                 {[
                   { label: 'Nombre', value: viewInsumo.nombre },
                   { label: 'Unidad', value: viewInsumo.unidad },
-                  { label: 'Costo unitario', value: formatCurrency(viewInsumo.costo_unitario) },
-                  { label: 'Valor en bodega', value: formatCurrency(viewInsumo.stock_actual * viewInsumo.costo_unitario) },
+                  ...(isAdmin ? [
+                    { label: 'Costo unitario', value: formatCurrency(viewInsumo.costo_unitario) },
+                    { label: 'Valor en bodega', value: formatCurrency(viewInsumo.stock_actual * viewInsumo.costo_unitario) },
+                  ] : []),
                   ...(viewInsumo.codigo ? [{ label: 'Código', value: viewInsumo.codigo }] : []),
                   ...(viewInsumo.referencia ? [{ label: 'Referencia', value: viewInsumo.referencia }] : []),
                   ...(viewInsumo.tienda_referencia ? [{ label: 'Tienda', value: viewInsumo.tienda_referencia }] : []),
