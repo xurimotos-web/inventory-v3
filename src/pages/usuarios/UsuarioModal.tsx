@@ -19,6 +19,8 @@ const EMPTY = {
   perfil_tipo: 'visualizador' as 'editor' | 'visualizador',
 };
 
+const selectCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
+
 async function adminChangePassword(userId: string, newPassword: string): Promise<string | null> {
   const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
   const url = import.meta.env.VITE_SUPABASE_URL;
@@ -47,8 +49,17 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
   const [showPass, setShowPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [departamentos, setDepartamentos] = useState<string[]>([]);
+  const [cargos, setCargos] = useState<string[]>([]);
   const isEdit = !!usuario;
   const isSelf = usuario?.id === me?.id;
+
+  useEffect(() => {
+    supabase.from('departamentos').select('nombre').order('nombre')
+      .then(({ data }) => setDepartamentos((data ?? []).map((d) => d.nombre)));
+    supabase.from('cargos').select('nombre').order('nombre')
+      .then(({ data }) => setCargos((data ?? []).map((c) => c.nombre)));
+  }, [open]);
 
   useEffect(() => {
     if (usuario) {
@@ -95,7 +106,6 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
 
       if (error) { toast.error('Error al actualizar el usuario'); setSaving(false); return; }
 
-      // Cambiar contraseña si se ingresó una
       if (newPassword) {
         if (isSelf) {
           const { error: passError } = await supabase.auth.updateUser({ password: newPassword });
@@ -109,7 +119,6 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
         toast.success('Usuario actualizado');
       }
     } else {
-      // Crear usuario via Admin API — sin email de verificación, activo de inmediato
       const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
       const url = import.meta.env.VITE_SUPABASE_URL;
 
@@ -184,11 +193,8 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
                   placeholder="Mínimo 6 caracteres"
                   className="w-full pr-10 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
+                <button type="button" onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                   {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
@@ -196,19 +202,38 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
           </>
         )}
 
-        {/* Departamento y cargo */}
+        {/* Departamento y cargo — dropdowns */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Departamento *</label>
-            <input type="text" value={form.departamento} onChange={(e) => set('departamento', e.target.value)}
-              placeholder="Ej: Operaciones"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <select value={form.departamento} onChange={(e) => set('departamento', e.target.value)} className={selectCls}>
+              <option value="">Seleccionar...</option>
+              {/* Mantener valor actual aunque no esté en la lista */}
+              {form.departamento && !departamentos.includes(form.departamento) && (
+                <option value={form.departamento}>{form.departamento}</option>
+              )}
+              {departamentos.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+            {departamentos.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">Sin departamentos. Agrégalos en Configuración.</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Cargo *</label>
-            <input type="text" value={form.cargo} onChange={(e) => set('cargo', e.target.value)}
-              placeholder="Ej: Técnico"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <select value={form.cargo} onChange={(e) => set('cargo', e.target.value)} className={selectCls}>
+              <option value="">Seleccionar...</option>
+              {form.cargo && !cargos.includes(form.cargo) && (
+                <option value={form.cargo}>{form.cargo}</option>
+              )}
+              {cargos.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            {cargos.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">Sin cargos. Agrégalos en Configuración.</p>
+            )}
           </div>
         </div>
 
@@ -217,13 +242,9 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Rol de acceso *</label>
           <div className="grid grid-cols-2 gap-3">
             {(['usuario', 'admin'] as const).map((rol) => (
-              <button
-                key={rol}
-                type="button"
-                onClick={() => set('rol', rol)}
+              <button key={rol} type="button" onClick={() => set('rol', rol)}
                 className={`px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all text-left
-                  ${form.rol === rol ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
-              >
+                  ${form.rol === rol ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
                 <p className="font-semibold capitalize">{rol}</p>
                 <p className="text-xs opacity-70 mt-0.5">
                   {rol === 'admin' ? 'Acceso completo al sistema' : 'Solo puede registrar salidas'}
@@ -239,13 +260,10 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de acceso</label>
             <div className="grid grid-cols-2 gap-3">
               {(['editor', 'visualizador'] as const).map((tipo) => (
-                <button
-                  key={tipo}
-                  type="button"
+                <button key={tipo} type="button"
                   onClick={() => setForm((prev) => ({ ...prev, perfil_tipo: tipo }))}
                   className={`px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all text-left
-                    ${form.perfil_tipo === tipo ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
-                >
+                    ${form.perfil_tipo === tipo ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
                   <p className="font-semibold capitalize">{tipo}</p>
                   <p className="text-xs opacity-70 mt-0.5">
                     {tipo === 'editor' ? 'Puede registrar y modificar' : 'Solo lectura y consultas'}
@@ -260,15 +278,10 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
         {isEdit && !isSelf && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Estado del usuario</label>
-            <button
-              type="button"
+            <button type="button"
               onClick={() => setForm((prev) => ({ ...prev, activo: !prev.activo }))}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-200
-                ${form.activo
-                  ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
-                  : 'border-rose-300 bg-rose-50 text-rose-700'
-                }`}
-            >
+                ${form.activo ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-rose-300 bg-rose-50 text-rose-700'}`}>
               <div className="flex items-center gap-3">
                 <div className={`w-4 h-4 rounded-full flex-shrink-0 ${form.activo ? 'bg-emerald-500' : 'bg-rose-400'}`} />
                 <div className="text-left">
@@ -301,11 +314,8 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
                 placeholder="Dejar en blanco para no cambiar"
                 className="w-full pr-10 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <button
-                type="button"
-                onClick={() => setShowNewPass(!showNewPass)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
+              <button type="button" onClick={() => setShowNewPass(!showNewPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                 {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>

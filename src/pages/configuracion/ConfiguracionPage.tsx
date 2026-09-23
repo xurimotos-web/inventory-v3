@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, Upload, Package, Lock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, Settings, Tag, Ruler, X, Check, Users, Search, Edit2, UserCheck, UserX, Upload, Package, Lock, ShieldCheck, Eye, EyeOff, Building2, Briefcase } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Categoria, Unidad, Profile, Area, Destino, Colaborador } from '../../types';
 import ImportColaboradoresModal from './ImportColaboradoresModal';
@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { CONFIG_PIN, checkPinSession, setPinSession } from '../../lib/permisos';
 import PermisosPanel from './PermisosPanel';
 
-type Tab = 'categorias' | 'unidades' | 'usuarios' | 'areas' | 'destinos' | 'colaboradores' | 'permisos';
+type Tab = 'categorias' | 'unidades' | 'usuarios' | 'areas' | 'destinos' | 'colaboradores' | 'departamentos' | 'cargos' | 'permisos';
 
 /* ── PIN Gate ── */
 function PinGate({ onUnlock }: { onUnlock: () => void }) {
@@ -104,6 +104,8 @@ export default function ConfiguracionPage() {
     { id: 'areas', label: 'Áreas', icon: Tag },
     { id: 'destinos', label: 'Destinos', icon: Package },
     { id: 'colaboradores', label: 'Colaboradores', icon: Users },
+    { id: 'departamentos', label: 'Departamentos', icon: Building2 },
+    { id: 'cargos', label: 'Cargos', icon: Briefcase },
     { id: 'permisos', label: 'Permisos', icon: ShieldCheck },
   ];
 
@@ -157,6 +159,8 @@ export default function ConfiguracionPage() {
           {tab === 'areas' && <AreasPanel />}
           {tab === 'destinos' && <DestinosPanel />}
           {tab === 'colaboradores' && <ColaboradoresPanel />}
+          {tab === 'departamentos' && <DepartamentosPanel />}
+          {tab === 'cargos' && <CargosPanel />}
           {tab === 'permisos' && <PermisosPanel />}
         </div>
       </div>
@@ -809,6 +813,172 @@ function ColaboradoresPanel() {
       )}
 
       <ImportColaboradoresModal open={importOpen} onClose={() => setImportOpen(false)} onSaved={load} />
+    </div>
+  );
+}
+
+/* ───────── DEPARTAMENTOS ───────── */
+function DepartamentosPanel() {
+  const [items, setItems] = useState<{ id: number; nombre: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [nombre, setNombre] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    const { data } = await supabase.from('departamentos').select('id, nombre').order('nombre');
+    setItems(data ?? []); setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function startNew() { setEditId(null); setNombre(''); setShowForm(true); }
+  function startEdit(item: { id: number; nombre: string }) { setEditId(item.id); setNombre(item.nombre); setShowForm(true); }
+  function cancel() { setShowForm(false); setEditId(null); setNombre(''); }
+
+  async function handleSave() {
+    if (!nombre.trim()) { toast.error('El nombre es obligatorio'); return; }
+    setSaving(true);
+    const { error } = editId
+      ? await supabase.from('departamentos').update({ nombre: nombre.trim() }).eq('id', editId)
+      : await supabase.from('departamentos').insert({ nombre: nombre.trim() });
+    setSaving(false);
+    if (error) { toast.error(error.code === '23505' ? 'Ese departamento ya existe' : 'Error al guardar'); return; }
+    toast.success(editId ? 'Departamento actualizado' : 'Departamento creado');
+    cancel(); load();
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('¿Eliminar este departamento?')) return;
+    const { error } = await supabase.from('departamentos').delete().eq('id', id);
+    if (error) { toast.error('Error al eliminar'); return; }
+    toast.success('Departamento eliminado'); load();
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-gray-800">Departamentos</p>
+          <p className="text-xs text-gray-400 mt-0.5">Lista de departamentos disponibles al registrar usuarios</p>
+        </div>
+        <button onClick={startNew} className={btnPrimary}><Plus size={15} /> Nuevo departamento</button>
+      </div>
+
+      {showForm && (
+        <div className={formBg}>
+          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
+            placeholder="Ej: Operaciones, Cocina, Administración..."
+            className={inputCls} autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSave()} />
+          <div className="flex gap-2">
+            <button onClick={cancel} className={btnSecondary}><X size={14} /> Cancelar</button>
+            <button onClick={handleSave} disabled={saving} className={btnPrimary}><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div> : items.length === 0 ? (
+        <div className="py-10 text-center"><Building2 size={28} className="mx-auto text-gray-200 mb-2" /><p className="text-gray-400 text-sm">No hay departamentos aún</p></div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          {items.map((item) => (
+            <div key={item.id} className={chipCls(false)}>
+              <div className="flex items-center gap-2 min-w-0">
+                <Building2 size={12} className="text-indigo-300 flex-shrink-0" />
+                <span className="text-sm text-gray-700 font-medium truncate">{item.nombre}</span>
+              </div>
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <button onClick={() => startEdit(item)} className="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors active:scale-90"><Pencil size={12} /></button>
+                <button onClick={() => handleDelete(item.id)} className="p-1 text-gray-400 hover:text-rose-600 rounded transition-colors active:scale-90"><Trash2 size={12} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───────── CARGOS ───────── */
+function CargosPanel() {
+  const [items, setItems] = useState<{ id: number; nombre: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [nombre, setNombre] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    const { data } = await supabase.from('cargos').select('id, nombre').order('nombre');
+    setItems(data ?? []); setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function startNew() { setEditId(null); setNombre(''); setShowForm(true); }
+  function startEdit(item: { id: number; nombre: string }) { setEditId(item.id); setNombre(item.nombre); setShowForm(true); }
+  function cancel() { setShowForm(false); setEditId(null); setNombre(''); }
+
+  async function handleSave() {
+    if (!nombre.trim()) { toast.error('El nombre es obligatorio'); return; }
+    setSaving(true);
+    const { error } = editId
+      ? await supabase.from('cargos').update({ nombre: nombre.trim() }).eq('id', editId)
+      : await supabase.from('cargos').insert({ nombre: nombre.trim() });
+    setSaving(false);
+    if (error) { toast.error(error.code === '23505' ? 'Ese cargo ya existe' : 'Error al guardar'); return; }
+    toast.success(editId ? 'Cargo actualizado' : 'Cargo creado');
+    cancel(); load();
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('¿Eliminar este cargo?')) return;
+    const { error } = await supabase.from('cargos').delete().eq('id', id);
+    if (error) { toast.error('Error al eliminar'); return; }
+    toast.success('Cargo eliminado'); load();
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-gray-800">Cargos</p>
+          <p className="text-xs text-gray-400 mt-0.5">Lista de cargos disponibles al registrar usuarios</p>
+        </div>
+        <button onClick={startNew} className={btnPrimary}><Plus size={15} /> Nuevo cargo</button>
+      </div>
+
+      {showForm && (
+        <div className={formBg}>
+          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
+            placeholder="Ej: Técnico, Supervisor, Coordinador..."
+            className={inputCls} autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSave()} />
+          <div className="flex gap-2">
+            <button onClick={cancel} className={btnSecondary}><X size={14} /> Cancelar</button>
+            <button onClick={handleSave} disabled={saving} className={btnPrimary}><Check size={14} /> {saving ? 'Guardando...' : 'Guardar'}</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? <div className="py-8 text-center text-gray-400 text-sm">Cargando...</div> : items.length === 0 ? (
+        <div className="py-10 text-center"><Briefcase size={28} className="mx-auto text-gray-200 mb-2" /><p className="text-gray-400 text-sm">No hay cargos aún</p></div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          {items.map((item) => (
+            <div key={item.id} className={chipCls(false)}>
+              <div className="flex items-center gap-2 min-w-0">
+                <Briefcase size={12} className="text-violet-300 flex-shrink-0" />
+                <span className="text-sm text-gray-700 font-medium truncate">{item.nombre}</span>
+              </div>
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <button onClick={() => startEdit(item)} className="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors active:scale-90"><Pencil size={12} /></button>
+                <button onClick={() => handleDelete(item.id)} className="p-1 text-gray-400 hover:text-rose-600 rounded transition-colors active:scale-90"><Trash2 size={12} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
