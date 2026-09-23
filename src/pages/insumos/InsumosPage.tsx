@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, Eye, ZoomIn, Upload, TrendingUp, AlertTriangle, Boxes, SendHorizonal } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, Eye, ZoomIn, Upload, TrendingUp, AlertTriangle, Boxes, SendHorizonal, FileDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Insumo } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -12,7 +12,7 @@ import { PageLoader } from '../../components/shared/LoadingSpinner';
 import Modal from '../../components/shared/Modal';
 import ImageLightbox from '../../components/shared/ImageLightbox';
 import toast from 'react-hot-toast';
-import { formatCurrency, formatNumber } from '../../lib/exportExcel';
+import { formatCurrency, formatNumber, exportToExcel } from '../../lib/exportExcel';
 
 export default function InsumosPage() {
   const { isAdmin, user } = useAuth();
@@ -21,6 +21,7 @@ export default function InsumosPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<'todos' | 'ok' | 'bajo' | 'agotado'>('todos');
+  const [filtroCategoria, setFiltroCategoria] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selected, setSelected] = useState<Insumo | null>(null);
@@ -82,17 +83,47 @@ export default function InsumosPage() {
     ? insumos
     : insumos.filter((i) => (userStock[i.id] ?? 0) > 0);
 
+  const categoriasList = Array.from(
+    new Set(insumos.map((i) => (i.categoria as unknown as { nombre: string })?.nombre).filter(Boolean))
+  ).sort();
+
   const filtered = visibleInsumos.filter((i) => {
     const q = search.toLowerCase();
+    const cat = (i.categoria as unknown as { nombre: string })?.nombre ?? '';
     const matchSearch = i.nombre.toLowerCase().includes(q) ||
       (i.descripcion ?? '').toLowerCase().includes(q) ||
       (i.codigo ?? '').toLowerCase().includes(q) ||
       (i.referencia ?? '').toLowerCase().includes(q);
-    if (filtroEstado === 'todos') return matchSearch;
+    const matchCat = !filtroCategoria || cat === filtroCategoria;
+    if (filtroEstado === 'todos') return matchSearch && matchCat;
     const stockVal = getDisplayStock(i);
     const estado = stockVal <= 0 ? 'agotado' : stockVal <= i.stock_minimo ? 'bajo' : 'ok';
-    return matchSearch && estado === filtroEstado;
+    return matchSearch && matchCat && estado === filtroEstado;
   });
+
+  function handleExport() {
+    const rows = filtered.map((i) => {
+      const cat = (i.categoria as unknown as { nombre: string })?.nombre ?? '';
+      const stock = getDisplayStock(i);
+      const estado = stock <= 0 ? 'Agotado' : stock <= i.stock_minimo ? 'Stock bajo' : 'En stock';
+      return {
+        'Nombre': i.nombre,
+        'Código': i.codigo ?? '',
+        'Referencia': i.referencia ?? '',
+        'Categoría': cat,
+        'Unidad': i.unidad,
+        'Stock actual': stock,
+        'Stock mínimo': i.stock_minimo,
+        'Costo unitario': i.costo_unitario,
+        'Valor total': stock * i.costo_unitario,
+        'Estado': estado,
+        'Tienda referencia': i.tienda_referencia ?? '',
+      };
+    });
+    const suffix = filtroCategoria ? `_${filtroCategoria}` : '_completo';
+    exportToExcel(rows, `inventario${suffix}`, 'Inventario');
+    toast.success(`${rows.length} insumos exportados`);
+  }
 
   const totalValor = insumos.reduce((acc, i) => acc + i.stock_actual * i.costo_unitario, 0);
   const countBajo = insumos.filter(i => i.stock_actual > 0 && i.stock_actual <= i.stock_minimo).length;
@@ -191,8 +222,28 @@ export default function InsumosPage() {
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all duration-200 shadow-sm"
           />
         </div>
+        {/* Filtro categoría */}
+        {categoriasList.length > 0 && (
+          <select
+            value={filtroCategoria}
+            onChange={(e) => setFiltroCategoria(e.target.value)}
+            className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all shadow-sm"
+          >
+            <option value="">Todas las categorías</option>
+            {categoriasList.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        )}
         {isAdmin && (
           <div className="flex gap-2">
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-emerald-600 text-sm font-medium hover:bg-emerald-50 hover:border-emerald-300 transition-all duration-150 whitespace-nowrap active:scale-95 shadow-sm"
+            >
+              <FileDown size={15} />
+              Exportar
+            </button>
             <button
               onClick={() => setImportOpen(true)}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 whitespace-nowrap active:scale-95 shadow-sm"
@@ -228,11 +279,21 @@ export default function InsumosPage() {
             </button>
           ))}
         </div>
-        <span className="text-xs text-gray-400 font-medium">
-          {filtered.length === insumos.length
-            ? `${insumos.length} insumos`
-            : `${filtered.length} de ${insumos.length} insumos`}
-        </span>
+        <div className="flex items-center gap-2">
+          {filtroCategoria && (
+            <button
+              onClick={() => setFiltroCategoria('')}
+              className="flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors"
+            >
+              {filtroCategoria} ×
+            </button>
+          )}
+          <span className="text-xs text-gray-400 font-medium">
+            {filtered.length === visibleInsumos.length
+              ? `${visibleInsumos.length} insumos`
+              : `${filtered.length} de ${visibleInsumos.length} insumos`}
+          </span>
+        </div>
       </div>
 
       {/* Tabla Desktop */}
