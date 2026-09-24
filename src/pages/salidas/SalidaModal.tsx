@@ -7,6 +7,7 @@ import StockBadge from '../../components/shared/StockBadge';
 import ImageLightbox from '../../components/shared/ImageLightbox';
 import { Package, ZoomIn, CheckCircle, User, Building2, Briefcase, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ComboBox from '../../components/shared/ComboBox';
 import { formatNumber } from '../../lib/exportExcel';
 import { recalcularStock } from '../../lib/stockUtils';
 
@@ -214,21 +215,16 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
           {/* Selector de insumo */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Insumo a retirar *</label>
-            <select
-              value={form.insumo_id}
-              onChange={(e) => set('insumo_id', e.target.value)}
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="">Seleccionar insumo...</option>
-              {insumos.map((i) => {
+            <ComboBox
+              options={insumos.map((i) => {
                 const disp = isAdmin ? i.stock_actual : Math.max(0, userStockMap[i.id] ?? 0);
-                return (
-                  <option key={i.id} value={i.id}>
-                    {i.nombre} — {disp} {i.unidad} disponibles
-                  </option>
-                );
+                return { value: String(i.id), label: i.nombre, sublabel: `${disp} ${i.unidad} disponibles` };
               })}
-            </select>
+              value={form.insumo_id}
+              onChange={(val) => set('insumo_id', val)}
+              placeholder="Buscar insumo..."
+              emptyText="No hay insumos disponibles"
+            />
           </div>
 
           {/* Preview del insumo seleccionado */}
@@ -305,16 +301,13 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
                 <UserCheck size={14} className="text-blue-500" /> Entregado a (persona que recibe)
               </span>
             </label>
-            <select
+            <ComboBox
+              options={colaboradores.map((c) => ({ value: c.nombre, label: c.nombre, sublabel: c.area ?? undefined }))}
               value={form.entregado_a}
-              onChange={(e) => set('entregado_a', e.target.value)}
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="">Seleccionar colaborador...</option>
-              {colaboradores.map((c) => (
-                <option key={c.id} value={c.nombre}>{c.nombre}{c.area ? ` — ${c.area}` : ''}</option>
-              ))}
-            </select>
+              onChange={(val) => set('entregado_a', val)}
+              placeholder="Buscar o escribir nombre..."
+              freeText
+            />
             {colaboradores.length === 0 && (
               <p className="text-xs text-amber-600 mt-1">No hay colaboradores. Ve a Configuración &gt; Colaboradores.</p>
             )}
@@ -324,32 +317,26 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Área</label>
-              <select
+              <ComboBox
+                options={areas.map((a) => ({ value: a.nombre, label: a.nombre }))}
                 value={form.area}
-                onChange={(e) => set('area', e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="">Seleccionar área...</option>
-                {areas.map((a) => (
-                  <option key={a.id} value={a.nombre}>{a.nombre}</option>
-                ))}
-              </select>
+                onChange={(val) => set('area', val)}
+                placeholder="Buscar o escribir área..."
+                freeText
+              />
               {areas.length === 0 && (
                 <p className="text-xs text-amber-600 mt-1">Sin áreas. Ve a Configuración &gt; Áreas.</p>
               )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Destino</label>
-              <select
+              <ComboBox
+                options={destinos.map((d) => ({ value: d.nombre, label: d.nombre }))}
                 value={form.destino}
-                onChange={(e) => set('destino', e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="">Seleccionar destino...</option>
-                {destinos.map((d) => (
-                  <option key={d.id} value={d.nombre}>{d.nombre}</option>
-                ))}
-              </select>
+                onChange={(val) => set('destino', val)}
+                placeholder="Buscar o escribir destino..."
+                freeText
+              />
               {destinos.length === 0 && (
                 <p className="text-xs text-amber-600 mt-1">Sin destinos. Ve a Configuración &gt; Destinos.</p>
               )}

@@ -5,6 +5,7 @@ import type { Insumo } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { FileUp, X, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ComboBox from '../../components/shared/ComboBox';
 import { formatNumber } from '../../lib/exportExcel';
 import { recalcularStock } from '../../lib/stockUtils';
 
@@ -23,6 +24,7 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
   const { user } = useAuth();
   const [form, setForm] = useState({ ...EMPTY });
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [proveedores, setProveedores] = useState<string[]>([]);
   const [facturaFile, setFacturaFile] = useState<File | null>(null);
   const [uploadingFactura, setUploadingFactura] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -32,6 +34,8 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
     if (!open) return;
     supabase.from('insumos').select('*, categoria:categorias(nombre)').eq('activo', true).order('nombre')
       .then(({ data }) => setInsumos(data ?? []));
+    supabase.from('proveedores').select('nombre').order('nombre')
+      .then(({ data }) => setProveedores((data ?? []).map((p: { nombre: string }) => p.nombre)));
   }, [open]);
 
   useEffect(() => {
@@ -100,24 +104,26 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
         {/* Insumo */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Insumo *</label>
-          <select value={form.insumo_id}
-            onChange={(e) => {
-              const insumo = insumos.find(i => i.id === Number(e.target.value));
-              set('insumo_id', e.target.value);
-              if (insumo) set('costo_unitario', String(insumo.costo_unitario));
-            }}
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="">Seleccionar insumo...</option>
-            {insumos.map((i) => {
+          <ComboBox
+            options={insumos.map((i) => {
               const cat = i.categoria as unknown as { nombre: string };
-              return (
-                <option key={i.id} value={i.id}>
-                  {i.codigo ? `[${i.codigo}] ` : ''}{i.nombre}{cat?.nombre ? ` — ${cat.nombre}` : ''} (stock: {i.stock_actual} {i.unidad})
-                </option>
-              );
+              return {
+                value: String(i.id),
+                label: `${i.codigo ? `[${i.codigo}] ` : ''}${i.nombre}`,
+                sublabel: `${cat?.nombre ? `${cat.nombre} · ` : ''}stock: ${i.stock_actual} ${i.unidad}`,
+              };
             })}
-          </select>
+            value={form.insumo_id}
+            onChange={(val) => {
+              set('insumo_id', val);
+              if (val) {
+                const insumo = insumos.find(i => String(i.id) === val);
+                if (insumo) set('costo_unitario', String(insumo.costo_unitario));
+              }
+            }}
+            placeholder="Buscar insumo..."
+            emptyText="No hay insumos"
+          />
         </div>
 
         {selectedInsumo && (
@@ -145,8 +151,13 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Proveedor</label>
-            <input type="text" value={form.proveedor} onChange={(e) => set('proveedor', e.target.value)} placeholder="Nombre del proveedor"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <ComboBox
+              options={proveedores.map((p) => ({ value: p, label: p }))}
+              value={form.proveedor}
+              onChange={(val) => set('proveedor', val)}
+              placeholder="Buscar o escribir proveedor..."
+              freeText
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">N° Factura</label>
