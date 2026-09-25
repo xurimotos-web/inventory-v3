@@ -3,6 +3,7 @@ import { Plus, Search, Download, PackageMinus, Filter, User, ShieldCheck, Trash2
 import { supabase } from '../../lib/supabase';
 import type { Salida } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../context/PermissionsContext';
 import { formatDate, exportToExcel, formatNumber } from '../../lib/exportExcel';
 import SalidaModal from './SalidaModal';
 import DeleteSalidaModal from './DeleteSalidaModal';
@@ -13,6 +14,7 @@ const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov'
 
 export default function SalidasPage() {
   const { isAdmin, user } = useAuth();
+  const { can } = usePermissions();
   const [salidas, setSalidas] = useState<Salida[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -117,8 +119,9 @@ export default function SalidasPage() {
 
   const allSelected = filtered.length > 0 && selectedIds.size === filtered.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < filtered.length;
+  const canDelete = isAdmin || can('salidas_eliminar');
   const adminColSpan = 9;
-  const userColSpan = 6;
+  const userColSpan = canDelete ? 9 : 6;
 
   if (loading) return <PageLoader />;
 
@@ -194,7 +197,7 @@ export default function SalidasPage() {
       )}
 
       {/* Barra eliminación masiva */}
-      {isAdmin && selectedIds.size > 0 && (
+      {(isAdmin || can('salidas_eliminar')) && selectedIds.size > 0 && (
         <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5">
           <Trash2 size={15} className="text-rose-500 flex-shrink-0" />
           <span className="text-rose-700 text-sm font-medium flex-1">
@@ -242,7 +245,7 @@ export default function SalidasPage() {
             </select>
           </div>
         )}
-        {isAdmin && (
+        {(isAdmin || can('salidas_exportar')) && (
           <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 active:scale-95">
             <Download size={15} />
             Exportar Excel
@@ -261,7 +264,7 @@ export default function SalidasPage() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
         <div className="px-5 py-3.5 border-b border-gray-50 flex items-center justify-between">
           <p className="text-sm text-gray-500"><strong className="text-gray-800">{filtered.length}</strong> registros</p>
-          {isAdmin && filtered.length > 0 && (
+          {(isAdmin || can('salidas_eliminar')) && filtered.length > 0 && (
             <button onClick={toggleSelectAll} className="text-xs text-indigo-500 hover:text-indigo-700 font-medium transition-colors">
               {allSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
             </button>
@@ -271,7 +274,7 @@ export default function SalidasPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/60">
-                {isAdmin && (
+                {(isAdmin || can('salidas_eliminar')) && (
                   <th className="px-4 py-3.5 w-10">
                     <input
                       type="checkbox"
@@ -289,7 +292,7 @@ export default function SalidasPage() {
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Registrado por</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden lg:table-cell">Departamento</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden xl:table-cell">Observaciones</th>
-                {isAdmin && <th className="px-4 py-3.5 w-10"></th>}
+                {(isAdmin || can('salidas_eliminar')) && <th className="px-4 py-3.5 w-10"></th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -302,7 +305,7 @@ export default function SalidasPage() {
                     key={salida.id}
                     className={`hover:bg-indigo-50/20 transition-colors duration-150 ${isSelected ? 'bg-rose-50/40' : ''}`}
                   >
-                    {isAdmin && (
+                    {(isAdmin || can('salidas_eliminar')) && (
                       <td className="px-4 py-3.5">
                         <input
                           type="checkbox"
@@ -357,7 +360,7 @@ export default function SalidasPage() {
                     </td>
                     <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{salida.departamento}</td>
                     <td className="px-5 py-3.5 text-gray-500 text-xs hidden xl:table-cell max-w-40 truncate">{salida.observaciones ?? '—'}</td>
-                    {isAdmin && (
+                    {(isAdmin || can('salidas_eliminar')) && (
                       <td className="px-4 py-3.5">
                         <button
                           onClick={() => openDeleteOne(salida)}

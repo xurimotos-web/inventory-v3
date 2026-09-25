@@ -3,6 +3,7 @@ import { Plus, Search, Edit2, Trash2, Package, Eye, ZoomIn, Upload, TrendingUp, 
 import { supabase } from '../../lib/supabase';
 import type { Insumo } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../context/PermissionsContext';
 import StockBadge from '../../components/shared/StockBadge';
 import InsumoModal from './InsumoModal';
 import ImportInsumosModal from './ImportInsumosModal';
@@ -16,6 +17,7 @@ import { formatCurrency, formatNumber, exportToExcel } from '../../lib/exportExc
 
 export default function InsumosPage() {
   const { isAdmin, user } = useAuth();
+  const { can } = usePermissions();
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [userStock, setUserStock] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
@@ -235,8 +237,8 @@ export default function InsumosPage() {
             ))}
           </select>
         )}
-        {isAdmin && (
-          <div className="flex gap-2">
+        <div className="flex gap-2">
+          {(isAdmin || can('insumos_exportar')) && (
             <button
               onClick={handleExport}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-emerald-600 text-sm font-medium hover:bg-emerald-50 hover:border-emerald-300 transition-all duration-150 whitespace-nowrap active:scale-95 shadow-sm"
@@ -244,6 +246,8 @@ export default function InsumosPage() {
               <FileDown size={15} />
               Exportar
             </button>
+          )}
+          {isAdmin && (
             <button
               onClick={() => setImportOpen(true)}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 whitespace-nowrap active:scale-95 shadow-sm"
@@ -251,6 +255,8 @@ export default function InsumosPage() {
               <Upload size={15} />
               Importar
             </button>
+          )}
+          {(isAdmin || can('insumos_crear')) && (
             <button
               onClick={() => { setSelected(null); setModalOpen(true); }}
               className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-violet-700 transition-all duration-150 shadow-md shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap"
@@ -258,8 +264,8 @@ export default function InsumosPage() {
               <Plus size={16} />
               Nuevo Insumo
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Filter pills + result count */}
@@ -404,27 +410,29 @@ export default function InsumosPage() {
                           </button>
                         )}
                         {isAdmin && (
-                          <>
-                            <button
-                              onClick={() => setAsignarTarget(insumo)}
-                              className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-150 active:scale-90"
-                              title="Asignar a usuario"
-                            >
-                              <SendHorizonal size={15} />
-                            </button>
-                            <button
-                              onClick={() => { setSelected(insumo); setModalOpen(true); }}
-                              className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-150 active:scale-90"
-                            >
-                              <Edit2 size={15} />
-                            </button>
-                            <button
-                              onClick={() => setDeleteTarget(insumo)}
-                              className="p-1.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-150 active:scale-90"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => setAsignarTarget(insumo)}
+                            className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-150 active:scale-90"
+                            title="Asignar a usuario"
+                          >
+                            <SendHorizonal size={15} />
+                          </button>
+                        )}
+                        {(isAdmin || can('insumos_editar')) && (
+                          <button
+                            onClick={() => { setSelected(insumo); setModalOpen(true); }}
+                            className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-150 active:scale-90"
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                        )}
+                        {(isAdmin || can('insumos_eliminar')) && (
+                          <button
+                            onClick={() => setDeleteTarget(insumo)}
+                            className="p-1.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-150 active:scale-90"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -508,7 +516,7 @@ export default function InsumosPage() {
                         >
                           <Eye size={15} />
                         </button>
-                        {isAdmin && (
+                        {(isAdmin || can('insumos_editar')) && (
                           <button
                             onClick={() => { setSelected(insumo); setModalOpen(true); }}
                             className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-90"

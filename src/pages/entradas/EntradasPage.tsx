@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Plus, Search, Download, PackagePlus, FileText, ExternalLink, TrendingUp, Calendar, ShoppingCart } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Entrada } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../context/PermissionsContext';
 import { formatCurrency, formatDate, exportToExcel, formatNumber } from '../../lib/exportExcel';
 import EntradaModal from './EntradaModal';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
@@ -10,6 +12,8 @@ import toast from 'react-hot-toast';
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 export default function EntradasPage() {
+  const { isAdmin } = useAuth();
+  const { can } = usePermissions();
   const [entradas, setEntradas] = useState<Entrada[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -124,16 +128,20 @@ export default function EntradasPage() {
           className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all duration-200 cursor-pointer">
           {[new Date().getFullYear(), new Date().getFullYear()-1, new Date().getFullYear()-2].map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
-        <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 active:scale-95">
-          <Download size={15} /> Exportar Excel
-        </button>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl text-sm font-medium hover:from-emerald-600 hover:to-teal-700 transition-all duration-150 shadow-md shadow-emerald-500/30 hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap"
-        >
-          <Plus size={16} />
-          Nueva Entrada
-        </button>
+        {(isAdmin || can('entradas_exportar')) && (
+          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 active:scale-95">
+            <Download size={15} /> Exportar Excel
+          </button>
+        )}
+        {(isAdmin || can('entradas_crear')) && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl text-sm font-medium hover:from-emerald-600 hover:to-teal-700 transition-all duration-150 shadow-md shadow-emerald-500/30 hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap"
+          >
+            <Plus size={16} />
+            Nueva Entrada
+          </button>
+        )}
       </div>
 
       {/* Tabla */}

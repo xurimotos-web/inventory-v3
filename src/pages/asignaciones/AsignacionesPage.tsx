@@ -22,6 +22,7 @@ export default function AsignacionesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
+  const [filtroAsignador, setFiltroAsignador] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -96,18 +97,26 @@ export default function AsignacionesPage() {
 
   const departamentos = [...new Set(salidas.map((s) => s.departamento))].sort();
 
+  const asignadoPorId = (s: Salida) => (s as unknown as { asignado_por?: string }).asignado_por ?? '';
+  const asignadoresList = [...new Set(
+    salidas.map(s => asignadoPorId(s)).filter(id => id && profilesMap[id])
+  )].sort((a, b) => (profilesMap[a] ?? '').localeCompare(profilesMap[b] ?? ''));
+
   const filtered = salidas.filter((s) => {
     const insumo = s.insumo as unknown as { nombre: string } | undefined;
     const q = search.toLowerCase();
     const receptor = s.profile as unknown as { nombre: string } | undefined;
+    const asignadoPorNombre = profilesMap[asignadoPorId(s)] ?? '';
     const matchSearch =
       (insumo?.nombre ?? '').toLowerCase().includes(q) ||
       (s.entregado_a ?? '').toLowerCase().includes(q) ||
       s.departamento.toLowerCase().includes(q) ||
-      (receptor?.nombre ?? '').toLowerCase().includes(q);
+      (receptor?.nombre ?? '').toLowerCase().includes(q) ||
+      asignadoPorNombre.toLowerCase().includes(q);
     const matchDept = !filtroDept || s.departamento === filtroDept;
     const matchFecha = !filtroFecha || s.created_at.slice(0, 10) === filtroFecha;
-    return matchSearch && matchDept && matchFecha;
+    const matchAsignador = !filtroAsignador || asignadoPorId(s) === filtroAsignador;
+    return matchSearch && matchDept && matchFecha && matchAsignador;
   });
 
   const allSelected = filtered.length > 0 && filtered.every((s) => selectedIds.has(s.id));
@@ -177,6 +186,18 @@ export default function AsignacionesPage() {
           <option value="">Todos los departamentos</option>
           {departamentos.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
+        {asignadoresList.length > 0 && (
+          <select
+            value={filtroAsignador}
+            onChange={(e) => setFiltroAsignador(e.target.value)}
+            className="px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 cursor-pointer"
+          >
+            <option value="">Todos los asignadores</option>
+            {asignadoresList.map((id) => (
+              <option key={id} value={id}>{profilesMap[id]}</option>
+            ))}
+          </select>
+        )}
         <div className="relative">
           <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input
@@ -186,10 +207,10 @@ export default function AsignacionesPage() {
             className="pl-8 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
           />
         </div>
-        {filtroFecha && (
-          <button onClick={() => setFiltroFecha('')}
+        {(filtroFecha || filtroAsignador) && (
+          <button onClick={() => { setFiltroFecha(''); setFiltroAsignador(''); }}
             className="px-3 py-2.5 border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 transition-colors active:scale-95">
-            Limpiar fecha
+            Limpiar filtros
           </button>
         )}
         {selectedIds.size > 0 && (
@@ -289,7 +310,10 @@ export default function AsignacionesPage() {
                         <span className="text-gray-300 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-gray-500 text-xs hidden sm:table-cell">{formatDate(salida.created_at)}</td>
+                    <td className="px-5 py-3.5 hidden sm:table-cell">
+                      <p className="text-xs text-gray-600 font-medium">{formatDate(salida.created_at)}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{new Date(salida.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</p>
+                    </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-1 justify-end">
                         <button onClick={() => openEdit(salida)}
