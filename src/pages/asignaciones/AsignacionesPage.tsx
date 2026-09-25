@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { Salida } from '../../types';
-import { Building2, Search, Edit2, Trash2, Package, Calendar, CheckCircle2 } from 'lucide-react';
+import { Building2, Search, Edit2, Trash2, Package, Calendar, CheckCircle2, User } from 'lucide-react';
 import { formatDate, formatNumber } from '../../lib/exportExcel';
 import { recalcularStock } from '../../lib/stockUtils';
 import toast from 'react-hot-toast';
@@ -21,18 +21,25 @@ export default function AsignacionesPage() {
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
 
   useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('salidas')
-      .select('*, insumo:insumos(id, nombre, unidad, codigo, imagen_url), profile:profiles(nombre, departamento)')
-      .order('created_at', { ascending: false });
+    const [{ data, error }, { data: profilesData }] = await Promise.all([
+      supabase
+        .from('salidas')
+        .select('*, insumo:insumos(id, nombre, unidad, codigo, imagen_url), profile:profiles(nombre, departamento)')
+        .eq('es_asignacion', true)
+        .order('created_at', { ascending: false }),
+      supabase.from('profiles').select('id, nombre'),
+    ]);
     if (error) { toast.error('Error al cargar asignaciones: ' + error.message); setLoading(false); return; }
-    const rows = ((data ?? []) as Salida[]).filter((s) => (s as unknown as { es_asignacion?: boolean }).es_asignacion !== false);
-    setSalidas(rows);
+    const map: Record<string, string> = {};
+    for (const p of profilesData ?? []) map[p.id] = p.nombre;
+    setProfilesMap(map);
+    setSalidas((data ?? []) as Salida[]);
     setSelectedIds(new Set());
     setLoading(false);
   }
@@ -92,10 +99,12 @@ export default function AsignacionesPage() {
   const filtered = salidas.filter((s) => {
     const insumo = s.insumo as unknown as { nombre: string } | undefined;
     const q = search.toLowerCase();
+    const receptor = s.profile as unknown as { nombre: string } | undefined;
     const matchSearch =
       (insumo?.nombre ?? '').toLowerCase().includes(q) ||
       (s.entregado_a ?? '').toLowerCase().includes(q) ||
-      s.departamento.toLowerCase().includes(q);
+      s.departamento.toLowerCase().includes(q) ||
+      (receptor?.nombre ?? '').toLowerCase().includes(q);
     const matchDept = !filtroDept || s.departamento === filtroDept;
     const matchFecha = !filtroFecha || s.created_at.slice(0, 10) === filtroFecha;
     return matchSearch && matchDept && matchFecha;
@@ -156,7 +165,7 @@ export default function AsignacionesPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por insumo, entregado a o departamento..."
+            placeholder="Buscar por insumo, receptor, entregado a o departamento..."
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all duration-200"
           />
         </div>
@@ -211,10 +220,10 @@ export default function AsignacionesPage() {
                     className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                 </th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Insumo</th>
-                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Departamento</th>
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Asignado a</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Cantidad</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden md:table-cell">Entregado a</th>
-                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Observaciones</th>
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Asignado por</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Fecha</th>
                 <th className="px-5 py-3.5" />
               </tr>
@@ -222,6 +231,8 @@ export default function AsignacionesPage() {
             <tbody className="divide-y divide-gray-50/80">
               {filtered.map((salida) => {
                 const insumo = salida.insumo as unknown as { nombre: string; unidad: string; codigo?: string; imagen_url?: string } | undefined;
+                const receptor = salida.profile as unknown as { nombre: string; departamento: string } | undefined;
+                const asignadoPor = profilesMap[(salida as unknown as { asignado_por?: string }).asignado_por ?? ''] ?? null;
                 const isSelected = selectedIds.has(salida.id);
                 return (
                   <tr key={salida.id}
@@ -246,10 +257,20 @@ export default function AsignacionesPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100/60 rounded-full text-xs font-medium">
-                        <Building2 size={11} />
-                        {salida.departamento}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-indigo-700 text-xs font-semibold">
+                            {receptor?.nombre?.charAt(0)?.toUpperCase() ?? '?'}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">{receptor?.nombre ?? '—'}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Building2 size={10} className="text-indigo-400" />
+                            <p className="text-xs text-gray-400">{salida.departamento}</p>
+                          </div>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-5 py-3.5">
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 border border-violet-200/60 rounded-full">
@@ -258,7 +279,16 @@ export default function AsignacionesPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-gray-600 hidden md:table-cell">{salida.entregado_a ?? <span className="text-gray-300 text-xs">—</span>}</td>
-                    <td className="px-5 py-3.5 text-gray-500 text-xs hidden lg:table-cell max-w-40 truncate">{salida.observaciones ?? '—'}</td>
+                    <td className="px-5 py-3.5 hidden sm:table-cell">
+                      {asignadoPor ? (
+                        <div className="flex items-center gap-1.5">
+                          <User size={13} className="text-gray-400 flex-shrink-0" />
+                          <span className="text-sm text-gray-600">{asignadoPor}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </td>
                     <td className="px-5 py-3.5 text-gray-500 text-xs hidden sm:table-cell">{formatDate(salida.created_at)}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-1 justify-end">

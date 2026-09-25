@@ -56,6 +56,7 @@ export default function AsignarStockModal({ open, onClose, onSaved, insumo }: As
       entregado_a: entregado_a.trim() || targetUser.nombre,
       observaciones: observaciones.trim() || null,
       es_asignacion: true,
+      asignado_por: user!.id,
     });
 
     if (error) { toast.error('Error al asignar: ' + error.message); setSaving(false); return; }

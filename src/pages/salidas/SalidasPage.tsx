@@ -30,6 +30,7 @@ export default function SalidasPage() {
     let query = supabase
       .from('salidas')
       .select('*, insumo:insumos(nombre, unidad, imagen_url), profile:profiles(nombre, departamento, cargo)')
+      .or('es_asignacion.eq.false,es_asignacion.is.null')
       .order('created_at', { ascending: false });
     if (!isAdmin) query = query.eq('usuario_id', user!.id);
     const { data } = await query;
