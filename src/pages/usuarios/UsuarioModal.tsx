@@ -101,10 +101,21 @@ export default function UsuarioModal({ open, onClose, onSaved, usuario }: Usuari
         departamento: form.departamento.trim(),
         cargo: form.cargo.trim(),
         rol: form.rol,
-        ...(isSelf ? {} : { activo: form.activo, perfil_tipo: form.perfil_tipo }),
       }).eq('id', usuario!.id);
 
-      if (error) { toast.error('Error al actualizar el usuario'); setSaving(false); return; }
+      if (error) { toast.error('Error al actualizar: ' + error.message); setSaving(false); return; }
+
+      if (!isSelf) {
+        const { error: error2 } = await supabase.from('profiles').update({
+          activo: form.activo,
+        }).eq('id', usuario!.id);
+
+        if (error2) { toast.error('Error al actualizar estado: ' + error2.message); setSaving(false); return; }
+
+        await supabase.from('profiles').update({
+          perfil_tipo: form.perfil_tipo,
+        }).eq('id', usuario!.id);
+      }
 
       if (newPassword) {
         if (isSelf) {
