@@ -251,7 +251,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-semibold text-gray-800 text-sm">{selectedInsumo.nombre}</p>
-                    <StockBadge insumo={selectedInsumo} />
+                    <StockBadge insumo={isAdmin ? selectedInsumo : { stock_actual: disponibleSeleccionado, stock_minimo: selectedInsumo.stock_minimo }} />
                   </div>
                   <p className="text-sm text-gray-600 mt-1">
                     Disponible: <strong>{formatNumber(disponibleSeleccionado)}</strong> {selectedInsumo.unidad}

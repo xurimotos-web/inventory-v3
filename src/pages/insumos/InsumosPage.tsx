@@ -390,7 +390,9 @@ export default function InsumosPage() {
                         <span className="font-semibold text-gray-700">{formatCurrency(insumo.stock_actual * insumo.costo_unitario)}</span>
                       </td>
                     )}
-                    <td className="px-5 py-4"><StockBadge insumo={insumo} /></td>
+                    <td className="px-5 py-4">
+                      <StockBadge insumo={isAdmin ? insumo : { stock_actual: displayStock, stock_minimo: insumo.stock_minimo }} />
+                    </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1 justify-end">
                         <button
@@ -493,7 +495,7 @@ export default function InsumosPage() {
                           </span>
                         )}
                       </div>
-                      <StockBadge insumo={insumo} />
+                      <StockBadge insumo={isAdmin ? insumo : { stock_actual: displayStock, stock_minimo: insumo.stock_minimo }} />
                     </div>
                     <div className="mt-2 space-y-1">
                       <div className="flex items-center justify-between text-xs text-gray-500">
@@ -604,7 +606,7 @@ export default function InsumosPage() {
               <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nivel de stock</p>
-                  <StockBadge insumo={viewInsumo} />
+                  <StockBadge insumo={isAdmin ? viewInsumo : { stock_actual: detailStock, stock_minimo: viewInsumo.stock_minimo }} />
                 </div>
                 <div className="flex items-baseline gap-2 mb-2">
                   <span className="text-2xl font-bold text-gray-800">{formatNumber(detailStock)}</span>
