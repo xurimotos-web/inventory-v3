@@ -55,7 +55,7 @@ function AppRoutes() {
         <Route path="asignaciones" element={<AdminRoute><AsignacionesPage /></AdminRoute>} />
         <Route path="proveedores" element={<AdminRoute><ProveedoresPage /></AdminRoute>} />
         <Route path="rotacion" element={<AdminRoute><RotacionPage /></AdminRoute>} />
-        <Route path="reportes" element={<AdminRoute><ReportesPage /></AdminRoute>} />
+        <Route path="reportes" element={<PrivateRoute><ReportesPage /></PrivateRoute>} />
         <Route path="usuarios" element={<AdminRoute><UsuariosPage /></AdminRoute>} />
         <Route path="configuracion" element={<AdminRoute><ConfiguracionPage /></AdminRoute>} />
       </Route>
