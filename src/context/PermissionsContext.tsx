@@ -65,6 +65,16 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     loadConfig();
     if (!isAdmin && profile) loadRolTipo();
+
+    // Realtime: reload permissions whenever system_config changes
+    const channel = supabase
+      .channel('permisos_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_config' }, () => {
+        loadConfig();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id, isAdmin]);
 

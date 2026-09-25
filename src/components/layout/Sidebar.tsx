@@ -30,7 +30,7 @@ const mainNavItems: NavItem[] = [
   { to: '/asignaciones', icon: Building2, label: 'Asignaciones', adminOnly: true },
   { to: '/proveedores', icon: Truck, label: 'Proveedores', adminOnly: true },
   { to: '/rotacion', icon: RefreshCw, label: 'Rotación', adminOnly: true },
-  { to: '/reportes', icon: BarChart3, label: 'Reportes', adminOnly: true },
+  { to: '/reportes', icon: BarChart3, label: 'Reportes' },
 ];
 
 export default function Sidebar({ open, onClose }: SidebarProps) {

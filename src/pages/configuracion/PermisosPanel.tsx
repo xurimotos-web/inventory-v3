@@ -36,14 +36,17 @@ export default function PermisosPanel() {
         updated_at: new Date().toISOString(),
       });
       if (!error) {
-        toast.success('Permisos guardados en la nube');
+        toast.success('Permisos guardados. Se aplican a todos los usuarios automáticamente.');
         await reloadConfig();
         setSaving(false);
         return;
       }
-    } catch {}
+      // Table doesn't exist yet or RLS blocked the write
+      toast.error('La tabla system_config no existe. Ejecuta el SQL de configuración inicial (botón de arriba) una sola vez en Supabase y vuelve a guardar.', { duration: 6000 });
+    } catch {
+      toast.error('Error de conexión al guardar permisos');
+    }
 
-    toast.success('Permisos guardados localmente');
     await reloadConfig();
     setSaving(false);
   }
@@ -61,7 +64,7 @@ export default function PermisosPanel() {
             onClick={() => setShowSQL(!showSQL)}
             className="flex items-center gap-1.5 px-3 py-2 border border-amber-200 bg-amber-50 text-amber-700 rounded-xl text-xs font-medium hover:bg-amber-100 transition-all"
           >
-            <Info size={13} /> SQL Supabase
+            <Info size={13} /> Configuración inicial
           </button>
           <button onClick={handleSave} disabled={saving}
             className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-violet-700 transition-all shadow-sm shadow-indigo-500/20 disabled:opacity-60 active:scale-95">
@@ -74,9 +77,14 @@ export default function PermisosPanel() {
       {showSQL && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <p className="text-xs font-semibold text-amber-800">
-              Ejecutar en Supabase → SQL Editor para que los permisos funcionen en todos los dispositivos
-            </p>
+            <div>
+              <p className="text-xs font-semibold text-amber-800">
+                Configuración inicial — ejecutar UNA SOLA VEZ en Supabase → SQL Editor
+              </p>
+              <p className="text-xs text-amber-700 mt-1">
+                Solo es necesario si es la primera vez que usas permisos en este proyecto. Después de ejecutarlo, el botón "Guardar Permisos" funciona directamente desde aquí sin necesidad de SQL.
+              </p>
+            </div>
             <button
               onClick={() => { navigator.clipboard.writeText(SQL_SYSTEM_CONFIG); toast.success('SQL copiado'); }}
               className="flex items-center gap-1 text-xs px-2 py-1 bg-amber-200 text-amber-800 rounded-lg hover:bg-amber-300 transition-colors flex-shrink-0"
@@ -115,7 +123,7 @@ export default function PermisosPanel() {
         <Info size={14} className="text-blue-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-blue-700 leading-relaxed">
           Para asignar el tipo de perfil a cada usuario, ve a la pestaña <strong>Usuarios</strong> → edita el usuario → selecciona <strong>Editor</strong> o <strong>Visualizador</strong>.
-          Requiere ejecutar el SQL de arriba en Supabase para que funcione en todos los dispositivos.
+          Una vez guardados los permisos, se aplican automáticamente a todos los usuarios conectados.
         </p>
       </div>
     </div>
