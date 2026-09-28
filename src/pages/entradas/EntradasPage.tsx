@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { formatCurrency, formatDate, exportToExcel, formatNumber } from '../../lib/exportExcel';
 import EntradaModal from './EntradaModal';
+import ProductoHistorialModal from '../insumos/ProductoHistorialModal';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -20,6 +21,7 @@ export default function EntradasPage() {
   const [filtroMes, setFiltroMes] = useState<number>(-1);
   const [filtroAnio, setFiltroAnio] = useState<number>(new Date().getFullYear());
   const [modalOpen, setModalOpen] = useState(false);
+  const [historialInsumoId, setHistorialInsumoId] = useState<number | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -172,12 +174,18 @@ export default function EntradasPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/50 flex items-center justify-center flex-shrink-0">
-                          <PackagePlus size={14} className="text-emerald-400" />
+                      <button
+                        onClick={() => setHistorialInsumoId(entrada.insumo_id)}
+                        className="flex items-center gap-3 group text-left"
+                        title="Ver historial del producto"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/50 flex items-center justify-center flex-shrink-0 group-hover:from-indigo-50 group-hover:to-violet-50 group-hover:border-indigo-200 transition-all">
+                          <PackagePlus size={14} className="text-emerald-400 group-hover:text-indigo-500 transition-colors" />
                         </div>
-                        <span className="font-semibold text-gray-800">{insumo?.nombre ?? '—'}</span>
-                      </div>
+                        <span className="font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors underline-offset-2 group-hover:underline">
+                          {insumo?.nombre ?? '—'}
+                        </span>
+                      </button>
                     </td>
                     <td className="px-5 py-4">
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 border border-emerald-200/60 rounded-full">
@@ -243,6 +251,7 @@ export default function EntradasPage() {
       </div>
 
       <EntradaModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={load} />
+      <ProductoHistorialModal insumoId={historialInsumoId} onClose={() => setHistorialInsumoId(null)} />
     </div>
   );
 }

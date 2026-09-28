@@ -1,12 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Package, PackagePlus, PackageMinus,
-  BarChart3, AlertTriangle, X, Boxes, Settings, Users, Truck, RefreshCw,
+  BarChart3, AlertTriangle, X, Boxes, Settings, Truck, RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../context/PermissionsContext';
-import { supabase } from '../../lib/supabase';
 import type { PermisoKey } from '../../lib/permisos';
 
 interface SidebarProps {
@@ -35,16 +33,6 @@ const mainNavItems: NavItem[] = [
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { isAdmin, profile } = useAuth();
   const { can } = usePermissions();
-  const [solicitudesCount, setSolicitudesCount] = useState(0);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    supabase
-      .from('stock_solicitudes')
-      .select('id', { count: 'exact', head: true })
-      .eq('estado', 'pendiente')
-      .then(({ count, error }) => { if (!error) setSolicitudesCount(count ?? 0); });
-  }, [isAdmin]);
 
 
   const visibleMain = mainNavItems.filter((item) => {
@@ -125,76 +113,27 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </ul>
         </nav>
 
-        {/* Sección ALERTAS — admin */}
-        {isAdmin && (
-          <div className="px-3 pb-3">
-            <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-2">
-              <p className="text-amber-400/70 text-[10px] uppercase font-bold px-2 mb-2 tracking-widest">Alertas</p>
-              <ul className="space-y-0.5">
-                <li>
-                  <NavLink
-                    to="/alertas-usuarios"
-                    onClick={onClose}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150
-                      ${isActive
-                        ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
-                        : 'text-amber-200/70 hover:text-white hover:bg-amber-500/30'
-                      }`
-                    }
-                  >
-                    <Users size={16} />
-                    <span className="flex-1">Alerta Usuarios</span>
-                    {solicitudesCount > 0 && (
-                      <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-tight">
-                        {solicitudesCount > 99 ? '99+' : solicitudesCount}
-                      </span>
-                    )}
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
-                    to="/alertas"
-                    onClick={onClose}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150
-                      ${isActive
-                        ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
-                        : 'text-amber-200/70 hover:text-white hover:bg-amber-500/30'
-                      }`
-                    }
-                  >
-                    <AlertTriangle size={16} />
-                    Alertas Stock
-                  </NavLink>
-                </li>
-              </ul>
-            </div>
+        {/* Sección ALERTAS */}
+        <div className="px-3 pb-3">
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-2">
+            <p className="text-amber-400/70 text-[10px] uppercase font-bold px-2 mb-2 tracking-widest">Alertas</p>
+            <NavLink
+              to="/alertas"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150
+                ${isActive
+                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
+                  : 'text-amber-200/70 hover:text-white hover:bg-amber-500/30'
+                }`
+              }
+            >
+              <AlertTriangle size={16} />
+              Alertas Stock
+            </NavLink>
           </div>
-        )}
+        </div>
 
-        {/* Sección ALERTAS — usuario normal */}
-        {!isAdmin && (
-          <div className="px-3 pb-3">
-            <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-2">
-              <p className="text-amber-400/70 text-[10px] uppercase font-bold px-2 mb-2 tracking-widest">Alertas</p>
-              <NavLink
-                to="/alertas"
-                onClick={onClose}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150
-                  ${isActive
-                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
-                    : 'text-amber-200/70 hover:text-white hover:bg-amber-500/30'
-                  }`
-                }
-              >
-                <AlertTriangle size={16} />
-                Alertas Stock
-              </NavLink>
-            </div>
-          </div>
-        )}
 
         {/* Configuración al fondo — solo admin */}
         {isAdmin && (

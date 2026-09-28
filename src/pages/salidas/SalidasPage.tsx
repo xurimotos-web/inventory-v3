@@ -7,6 +7,7 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { formatDate, exportToExcel, formatNumber } from '../../lib/exportExcel';
 import SalidaModal from './SalidaModal';
 import DeleteSalidaModal from './DeleteSalidaModal';
+import ProductoHistorialModal from '../insumos/ProductoHistorialModal';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -25,6 +26,7 @@ export default function SalidasPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Salida[]>([]);
+  const [historialInsumoId, setHistorialInsumoId] = useState<number | null>(null);
 
   useEffect(() => { if (user) load(); }, [isAdmin, user?.id]);
 
@@ -317,16 +319,22 @@ export default function SalidasPage() {
                     )}
                     <td className="px-5 py-3.5 text-gray-500 text-xs whitespace-nowrap">{formatDate(salida.created_at)}</td>
                     <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2.5">
+                      <button
+                        onClick={() => setHistorialInsumoId(salida.insumo_id)}
+                        className="flex items-center gap-2.5 group text-left"
+                        title="Ver historial del producto"
+                      >
                         {insumo?.imagen_url ? (
-                          <img src={insumo.imagen_url} alt="" className="w-8 h-8 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+                          <img src={insumo.imagen_url} alt="" className="w-8 h-8 rounded-lg object-cover bg-gray-100 flex-shrink-0 group-hover:ring-2 group-hover:ring-indigo-300 transition-all" />
                         ) : (
-                          <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-100 transition-colors">
                             <PackageMinus size={13} className="text-indigo-400" />
                           </div>
                         )}
-                        <span className="font-medium text-gray-800">{insumo?.nombre ?? '—'}</span>
-                      </div>
+                        <span className="font-medium text-gray-800 group-hover:text-indigo-600 transition-colors underline-offset-2 group-hover:underline">
+                          {insumo?.nombre ?? '—'}
+                        </span>
+                      </button>
                     </td>
                     <td className="px-5 py-3.5">
                       <span className="font-semibold text-rose-500">-{formatNumber(salida.cantidad)}</span>
@@ -391,6 +399,7 @@ export default function SalidasPage() {
       </div>
 
       <SalidaModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={load} />
+      <ProductoHistorialModal insumoId={historialInsumoId} onClose={() => setHistorialInsumoId(null)} />
       <DeleteSalidaModal
         open={deleteModalOpen}
         salidas={toDelete}
