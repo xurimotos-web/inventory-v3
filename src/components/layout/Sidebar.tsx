@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Package, PackagePlus, PackageMinus,
-  BarChart3, AlertTriangle, X, Boxes, Settings, Users, Building2, Truck, RefreshCw,
+  BarChart3, AlertTriangle, X, Boxes, Settings, Users, Truck, RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -27,7 +27,6 @@ const mainNavItems: NavItem[] = [
   { to: '/insumos', icon: Package, label: 'Catálogo de Insumos', permisoKey: 'ver_insumos' },
   { to: '/entradas', icon: PackagePlus, label: 'Entradas', adminOnly: true },
   { to: '/salidas', icon: PackageMinus, label: 'Salidas', permisoKey: 'ver_salidas' },
-  { to: '/asignaciones', icon: Building2, label: 'Asignaciones', adminOnly: true },
   { to: '/proveedores', icon: Truck, label: 'Proveedores', adminOnly: true },
   { to: '/rotacion', icon: RefreshCw, label: 'Rotación', adminOnly: true },
   { to: '/reportes', icon: BarChart3, label: 'Reportes' },
@@ -37,7 +36,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const { isAdmin, profile, user } = useAuth();
   const { can } = usePermissions();
   const [solicitudesCount, setSolicitudesCount] = useState(0);
-  const [misAgotados, setMisAgotados] = useState(0);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -48,19 +46,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       .then(({ count, error }) => { if (!error) setSolicitudesCount(count ?? 0); });
   }, [isAdmin]);
 
-  useEffect(() => {
-    if (isAdmin || !user) return;
-    Promise.all([
-      supabase.from('salidas').select('insumo_id, cantidad').eq('usuario_id', user.id).eq('es_asignacion', true),
-      supabase.from('salidas').select('insumo_id, cantidad').eq('usuario_id', user.id).eq('es_asignacion', false),
-    ]).then(([{ data: asignadas }, { data: consumidas }]) => {
-      const map: Record<number, number> = {};
-      for (const a of asignadas ?? []) map[a.insumo_id] = (map[a.insumo_id] ?? 0) + a.cantidad;
-      for (const c of consumidas ?? []) map[c.insumo_id] = (map[c.insumo_id] ?? 0) - c.cantidad;
-      const agotados = Object.values(map).filter((v) => v <= 0).length;
-      setMisAgotados(agotados);
-    });
-  }, [isAdmin, user]);
 
   const visibleMain = mainNavItems.filter((item) => {
     if (item.adminOnly) return isAdmin;
@@ -205,12 +190,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 }
               >
                 <AlertTriangle size={16} />
-                <span className="flex-1">Mis Alertas</span>
-                {misAgotados > 0 && (
-                  <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-tight">
-                    {misAgotados > 99 ? '99+' : misAgotados}
-                  </span>
-                )}
+                Alertas Stock
               </NavLink>
             </div>
           </div>

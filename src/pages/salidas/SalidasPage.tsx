@@ -29,13 +29,10 @@ export default function SalidasPage() {
   useEffect(() => { if (user) load(); }, [isAdmin, user?.id]);
 
   async function load() {
-    let query = supabase
+    const { data } = await supabase
       .from('salidas')
       .select('*, insumo:insumos(nombre, unidad, imagen_url), profile:profiles(nombre, departamento, cargo)')
-      .or('es_asignacion.eq.false,es_asignacion.is.null')
       .order('created_at', { ascending: false });
-    if (!isAdmin) query = query.eq('usuario_id', user!.id);
-    const { data } = await query;
     setSalidas(data ?? []);
     setSelectedIds(new Set());
     setLoading(false);
@@ -190,7 +187,7 @@ export default function SalidasPage() {
           <div>
             <p className="text-indigo-800 font-semibold text-sm">Registro de Consumo</p>
             <p className="text-indigo-600 text-xs mt-0.5">
-              Aquí puedes ver todas tus salidas registradas. Tu nombre, departamento y cargo quedan guardados automáticamente en cada movimiento.
+              Aquí puedes consultar el historial completo de salidas de la bodega. Solo el administrador puede registrar nuevos movimientos.
             </p>
           </div>
         </div>
@@ -251,13 +248,15 @@ export default function SalidasPage() {
             Exportar Excel
           </button>
         )}
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-violet-700 transition-all duration-150 shadow-md shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap"
-        >
-          <Plus size={16} />
-          Nueva Salida
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-violet-700 transition-all duration-150 shadow-md shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap"
+          >
+            <Plus size={16} />
+            Nueva Salida
+          </button>
+        )}
       </div>
 
       {/* Tabla */}

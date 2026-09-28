@@ -9,12 +9,10 @@ import InsumosPage from './pages/insumos/InsumosPage';
 import EntradasPage from './pages/entradas/EntradasPage';
 import SalidasPage from './pages/salidas/SalidasPage';
 import AlertasPage from './pages/alertas/AlertasPage';
-import AlertasMisInsumosPage from './pages/alertas/AlertasMisInsumosPage';
 import AlertasUsuariosPage from './pages/alertas-usuarios/AlertasUsuariosPage';
 import ReportesPage from './pages/reportes/ReportesPage';
 import UsuariosPage from './pages/usuarios/UsuariosPage';
 import ConfiguracionPage from './pages/configuracion/ConfiguracionPage';
-import AsignacionesPage from './pages/asignaciones/AsignacionesPage';
 import ProveedoresPage from './pages/proveedores/ProveedoresPage';
 import RotacionPage from './pages/rotacion/RotacionPage';
 import { PageLoader } from './components/shared/LoadingSpinner';
@@ -34,8 +32,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 function SmartAlertas() {
-  const { isAdmin } = useAuth();
-  return isAdmin ? <AlertasPage /> : <AlertasMisInsumosPage />;
+  return <AlertasPage />;
 }
 
 function AppRoutes() {
@@ -52,7 +49,6 @@ function AppRoutes() {
         <Route path="salidas" element={<SalidasPage />} />
         <Route path="alertas-usuarios" element={<AdminRoute><AlertasUsuariosPage /></AdminRoute>} />
         <Route path="alertas" element={<PrivateRoute><SmartAlertas /></PrivateRoute>} />
-        <Route path="asignaciones" element={<AdminRoute><AsignacionesPage /></AdminRoute>} />
         <Route path="proveedores" element={<AdminRoute><ProveedoresPage /></AdminRoute>} />
         <Route path="rotacion" element={<AdminRoute><RotacionPage /></AdminRoute>} />
         <Route path="reportes" element={<PrivateRoute><ReportesPage /></PrivateRoute>} />

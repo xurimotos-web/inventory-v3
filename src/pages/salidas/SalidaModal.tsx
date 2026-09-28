@@ -20,10 +20,9 @@ interface SalidaModalProps {
 const EMPTY = { insumo_id: '', cantidad: '', entregado_a: '', area: '', destino: '', observaciones: '' };
 
 export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps) {
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile } = useAuth();
   const [form, setForm] = useState({ ...EMPTY });
   const [insumos, setInsumos] = useState<Insumo[]>([]);
-  const [userStockMap, setUserStockMap] = useState<Record<number, number>>({});
   const [colaboradores, setColaboradores] = useState<{ id: number; nombre: string; area?: string }[]>([]);
   const [areas, setAreas] = useState<{ id: number; nombre: string }[]>([]);
   const [destinos, setDestinos] = useState<{ id: number; nombre: string }[]>([]);
@@ -33,22 +32,8 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
 
   useEffect(() => {
     supabase.from('insumos').select('*').eq('activo', true).order('nombre')
-      .then(async ({ data }) => {
-        const all = data ?? [];
-        if (isAdmin) {
-          setInsumos(all.filter((i) => i.stock_actual > 0));
-        } else if (user) {
-          const { data: salidas } = await supabase
-            .from('salidas')
-            .select('insumo_id, cantidad, es_asignacion')
-            .eq('usuario_id', user.id);
-          const map: Record<number, number> = {};
-          for (const s of salidas ?? []) {
-            map[s.insumo_id] = (map[s.insumo_id] ?? 0) + (s.es_asignacion ? s.cantidad : -s.cantidad);
-          }
-          setUserStockMap(map);
-          setInsumos(all.filter((i) => (map[i.id] ?? 0) > 0));
-        }
+      .then(({ data }) => {
+        setInsumos((data ?? []).filter((i) => i.stock_actual > 0));
       });
     supabase.from('colaboradores').select('id, nombre, area').eq('activo', true).order('nombre')
       .then(({ data }) => setColaboradores(data ?? []));
@@ -74,7 +59,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
     const insumo = insumos.find((i) => i.id === Number(form.insumo_id));
     if (!insumo) return;
 
-    const disponible = isAdmin ? insumo.stock_actual : Math.max(0, userStockMap[insumo.id] ?? 0);
+    const disponible = insumo.stock_actual;
     if (cantidad > disponible) {
       toast.error(`Stock insuficiente. Disponible: ${disponible} ${insumo.unidad}`);
       return;
@@ -110,9 +95,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
   }
 
   const selectedInsumo = insumos.find((i) => i.id === Number(form.insumo_id));
-  const disponibleSeleccionado = selectedInsumo
-    ? (isAdmin ? selectedInsumo.stock_actual : Math.max(0, userStockMap[selectedInsumo.id] ?? 0))
-    : 0;
+  const disponibleSeleccionado = selectedInsumo ? selectedInsumo.stock_actual : 0;
   const nuevoCantidad = selectedInsumo ? disponibleSeleccionado - Number(form.cantidad || 0) : null;
 
   if (saved && selectedInsumo) {
@@ -216,10 +199,9 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Insumo a retirar *</label>
             <ComboBox
-              options={insumos.map((i) => {
-                const disp = isAdmin ? i.stock_actual : Math.max(0, userStockMap[i.id] ?? 0);
-                return { value: String(i.id), label: i.nombre, sublabel: `${disp} ${i.unidad} disponibles` };
-              })}
+              options={insumos.map((i) => ({
+                value: String(i.id), label: i.nombre, sublabel: `${i.stock_actual} ${i.unidad} disponibles`,
+              }))}
               value={form.insumo_id}
               onChange={(val) => set('insumo_id', val)}
               placeholder="Buscar insumo..."
@@ -251,7 +233,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-semibold text-gray-800 text-sm">{selectedInsumo.nombre}</p>
-                    <StockBadge insumo={isAdmin ? selectedInsumo : { stock_actual: disponibleSeleccionado, stock_minimo: selectedInsumo.stock_minimo }} />
+                    <StockBadge insumo={selectedInsumo} />
                   </div>
                   <p className="text-sm text-gray-600 mt-1">
                     Disponible: <strong>{formatNumber(disponibleSeleccionado)}</strong> {selectedInsumo.unidad}
