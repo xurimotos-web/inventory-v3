@@ -135,7 +135,7 @@ export default function InsumosPage() {
     for (const s of todasSalidas ?? []) {
       const insumoId = s.insumo_id as number;
       const uid = s.usuario_id as string;
-      const p = s.profile as { nombre: string; departamento: string } | null;
+      const p = s.profile as unknown as { nombre: string; departamento: string } | null;
       if (!mapaAsig[insumoId]) mapaAsig[insumoId] = { total: 0, usuarios: {} };
       if (!mapaAsig[insumoId].usuarios[uid]) {
         mapaAsig[insumoId].usuarios[uid] = { nombre: p?.nombre ?? uid, depto: p?.departamento ?? '', asignado: 0, consumido: 0 };
