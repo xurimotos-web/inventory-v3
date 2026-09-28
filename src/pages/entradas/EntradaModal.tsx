@@ -89,9 +89,12 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
 
     if (entradaError) { toast.error('Error al registrar la entrada'); setSaving(false); return; }
 
-    await recalcularStock(Number(form.insumo_id));
-
-    toast.success('Entrada registrada y stock actualizado');
+    const stockError = await recalcularStock(Number(form.insumo_id));
+    if (stockError) {
+      toast.error('Entrada guardada, pero error al actualizar stock: ' + stockError, { duration: 8000 });
+    } else {
+      toast.success('Entrada registrada y stock actualizado');
+    }
     onSaved(); onClose();
     setSaving(false);
   }
