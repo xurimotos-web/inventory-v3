@@ -13,7 +13,7 @@ import { PageLoader } from '../../components/shared/LoadingSpinner';
 import Modal from '../../components/shared/Modal';
 import ImageLightbox from '../../components/shared/ImageLightbox';
 import toast from 'react-hot-toast';
-import { formatCurrency, formatNumber, exportToExcel } from '../../lib/exportExcel';
+import { formatCurrency, formatNumber, exportToExcel, exportToExcelMultiSheet } from '../../lib/exportExcel';
 
 export default function InsumosPage() {
   const { isAdmin, user } = useAuth();
@@ -103,28 +103,109 @@ export default function InsumosPage() {
     return matchSearch && matchCat && estado === filtroEstado;
   });
 
-  function handleExport() {
-    const rows = filtered.map((i) => {
+  async function handleExport() {
+    if (!isAdmin) {
+      // Usuario normal: exporta solo sus insumos con su cuota
+      const rows = filtered.map((i) => {
+        const cat = (i.categoria as unknown as { nombre: string })?.nombre ?? '';
+        const cuota = Math.max(0, userStock[i.id] ?? 0);
+        const estado = cuota <= 0 ? 'Agotado' : cuota <= i.stock_minimo ? 'Stock bajo' : 'En stock';
+        return {
+          'Nombre': i.nombre,
+          'Código': i.codigo ?? '',
+          'Categoría': cat,
+          'Unidad': i.unidad,
+          'Mi cuota disponible': cuota,
+          'Estado': estado,
+        };
+      });
+      exportToExcel(rows, `mis_insumos_${new Date().toISOString().slice(0, 10)}`, 'Mis Insumos');
+      toast.success(`${rows.length} insumos exportados`);
+      return;
+    }
+
+    // Admin: carga todas las salidas (asignaciones + consumos) para el resumen
+    const { data: todasSalidas } = await supabase
+      .from('salidas')
+      .select('insumo_id, cantidad, es_asignacion, usuario_id, profile:profiles(nombre, departamento)');
+
+    type UsuarioData = { nombre: string; depto: string; asignado: number; consumido: number };
+    const mapaAsig: Record<number, { total: number; usuarios: Record<string, UsuarioData> }> = {};
+
+    for (const s of todasSalidas ?? []) {
+      const insumoId = s.insumo_id as number;
+      const uid = s.usuario_id as string;
+      const p = s.profile as { nombre: string; departamento: string } | null;
+      if (!mapaAsig[insumoId]) mapaAsig[insumoId] = { total: 0, usuarios: {} };
+      if (!mapaAsig[insumoId].usuarios[uid]) {
+        mapaAsig[insumoId].usuarios[uid] = { nombre: p?.nombre ?? uid, depto: p?.departamento ?? '', asignado: 0, consumido: 0 };
+      }
+      if (s.es_asignacion === true) {
+        mapaAsig[insumoId].total += Number(s.cantidad);
+        mapaAsig[insumoId].usuarios[uid].asignado += Number(s.cantidad);
+      } else {
+        mapaAsig[insumoId].usuarios[uid].consumido += Number(s.cantidad);
+      }
+    }
+
+    // Hoja 1: Inventario General con totales de asignaciones
+    const hoja1 = filtered.map((i) => {
       const cat = (i.categoria as unknown as { nombre: string })?.nombre ?? '';
-      const stock = getDisplayStock(i);
-      const estado = stock <= 0 ? 'Agotado' : stock <= i.stock_minimo ? 'Stock bajo' : 'En stock';
+      const estado = i.stock_actual <= 0 ? 'Agotado' : i.stock_actual <= i.stock_minimo ? 'Stock bajo' : 'En stock';
+      const asig = mapaAsig[i.id];
+      const totalAsignado = asig?.total ?? 0;
+      const detalle = asig
+        ? Object.values(asig.usuarios)
+            .filter((u) => u.asignado > 0)
+            .map((u) => `${u.nombre}: ${Math.max(0, u.asignado - u.consumido)} disp. / ${u.asignado} asig.`)
+            .join(' | ')
+        : 'Sin asignaciones';
       return {
         'Nombre': i.nombre,
         'Código': i.codigo ?? '',
         'Referencia': i.referencia ?? '',
         'Categoría': cat,
         'Unidad': i.unidad,
-        'Stock actual': stock,
-        'Stock mínimo': i.stock_minimo,
-        'Costo unitario': i.costo_unitario,
-        'Valor total': stock * i.costo_unitario,
+        'Stock Físico': i.stock_actual,
+        'Stock Mínimo': i.stock_minimo,
+        'Total Asignado a Usuarios': totalAsignado,
+        'Costo Unitario': i.costo_unitario,
+        'Valor Total': i.stock_actual * i.costo_unitario,
         'Estado': estado,
         'Tienda referencia': i.tienda_referencia ?? '',
+        'Asignaciones por usuario': detalle,
       };
     });
+
+    // Hoja 2: Cuotas por usuario (una fila por insumo × usuario)
+    const hoja2: Record<string, unknown>[] = [];
+    for (const i of filtered) {
+      const asig = mapaAsig[i.id];
+      if (!asig) continue;
+      for (const u of Object.values(asig.usuarios)) {
+        if (u.asignado === 0 && u.consumido === 0) continue;
+        hoja2.push({
+          'Insumo': i.nombre,
+          'Código': i.codigo ?? '',
+          'Unidad': i.unidad,
+          'Usuario': u.nombre,
+          'Departamento': u.depto,
+          'Cuota Asignada': u.asignado,
+          'Consumido por usuario': u.consumido,
+          'Cuota Disponible': Math.max(0, u.asignado - u.consumido),
+        });
+      }
+    }
+
     const suffix = filtroCategoria ? `_${filtroCategoria}` : '_completo';
-    exportToExcel(rows, `inventario${suffix}`, 'Inventario');
-    toast.success(`${rows.length} insumos exportados`);
+    exportToExcelMultiSheet(
+      [
+        { name: 'Inventario General', data: hoja1 },
+        { name: 'Cuotas por Usuario', data: hoja2.length > 0 ? hoja2 : [{ Nota: 'No hay asignaciones registradas' }] },
+      ],
+      `inventario${suffix}_${new Date().toISOString().slice(0, 10)}`,
+    );
+    toast.success(`${hoja1.length} insumos exportados con detalle de asignaciones`);
   }
 
   const totalValor = insumos.reduce((acc, i) => acc + i.stock_actual * i.costo_unitario, 0);

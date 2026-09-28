@@ -3,7 +3,6 @@ import { supabase } from '../../lib/supabase';
 import type { Salida } from '../../types';
 import { Building2, Search, Edit2, Trash2, Package, Calendar, CheckCircle2, User } from 'lucide-react';
 import { formatDate, formatNumber } from '../../lib/exportExcel';
-import { recalcularStock } from '../../lib/stockUtils';
 import toast from 'react-hot-toast';
 import Modal from '../../components/shared/Modal';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
@@ -50,7 +49,6 @@ export default function AsignacionesPage() {
     setDeleting(true);
     const { error } = await supabase.from('salidas').delete().eq('id', salida.id);
     if (error) { toast.error('Error al eliminar: ' + error.message); setDeleting(false); return; }
-    await recalcularStock(salida.insumo_id);
     toast.success('Asignación eliminada');
     setDeleting(false);
     load();
@@ -61,10 +59,8 @@ export default function AsignacionesPage() {
     if (!confirm(`¿Eliminar ${selectedIds.size} asignación(es) seleccionada(s)?`)) return;
     setDeleting(true);
     const toDelete = salidas.filter((s) => selectedIds.has(s.id));
-    const affectedInsumos = [...new Set(toDelete.map((s) => s.insumo_id))];
     const { error } = await supabase.from('salidas').delete().in('id', [...selectedIds]);
     if (error) { toast.error('Error al eliminar: ' + error.message); setDeleting(false); return; }
-    for (const id of affectedInsumos) await recalcularStock(id);
     toast.success(`${toDelete.length} asignaciones eliminadas`);
     setDeleting(false);
     load();
