@@ -33,7 +33,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
-  const { isAdmin, profile, user } = useAuth();
+  const { isAdmin, profile } = useAuth();
   const { can } = usePermissions();
   const [solicitudesCount, setSolicitudesCount] = useState(0);
 
