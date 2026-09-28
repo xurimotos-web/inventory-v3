@@ -3,6 +3,8 @@ import Modal from '../../components/shared/Modal';
 import ImageUpload from '../../components/shared/ImageUpload';
 import { supabase } from '../../lib/supabase';
 import type { Insumo, Categoria, Unidad } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { recalcularStock } from '../../lib/stockUtils';
 import toast from 'react-hot-toast';
 
 interface InsumoModalProps {
@@ -24,6 +26,7 @@ async function generateCodigo(): Promise<string> {
 }
 
 export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoModalProps) {
+  const { user } = useAuth();
   const [form, setForm] = useState({ ...EMPTY });
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [unidades, setUnidades] = useState<Unidad[]>([]);
@@ -63,7 +66,7 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
     if (!form.nombre.trim()) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
 
-    const payload = {
+    const base = {
       codigo: form.codigo.trim() || null,
       nombre: form.nombre.trim(),
       descripcion: form.descripcion.trim() || null,
@@ -71,21 +74,41 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
       tienda_referencia: form.tienda_referencia.trim() || null,
       categoria_id: form.categoria_id ? Number(form.categoria_id) : null,
       unidad: form.unidad,
-      stock_actual: Number(form.stock_actual),
       stock_minimo: Number(form.stock_minimo),
       costo_unitario: Number(form.costo_unitario),
       imagen_url: form.imagen_url || null,
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = isEdit
-      ? await supabase.from('insumos').update(payload).eq('id', insumo!.id)
-      : await supabase.from('insumos').insert(payload);
-
-    if (error) {
-      toast.error('Error al guardar el insumo');
+    if (isEdit) {
+      // stock_actual is Kardex-derived — never overwrite it directly on edit
+      const { error } = await supabase.from('insumos').update(base).eq('id', insumo!.id);
+      if (error) { toast.error('Error al guardar el insumo'); setSaving(false); return; }
+      toast.success('Insumo actualizado');
+      onSaved(); onClose();
     } else {
-      toast.success(isEdit ? 'Insumo actualizado' : 'Insumo creado correctamente');
+      // Create with stock_actual = 0; initial stock becomes an entrada so Kardex is consistent
+      const stockInicial = Number(form.stock_actual);
+      const { data: created, error } = await supabase
+        .from('insumos')
+        .insert({ ...base, stock_actual: 0 })
+        .select('id')
+        .single();
+
+      if (error || !created) { toast.error('Error al crear el insumo'); setSaving(false); return; }
+
+      if (stockInicial > 0) {
+        await supabase.from('entradas').insert({
+          insumo_id: created.id,
+          cantidad: stockInicial,
+          costo_unitario: Number(form.costo_unitario) || 0,
+          observaciones: 'Stock inicial al crear el insumo',
+          usuario_id: user!.id,
+        });
+        await recalcularStock(created.id);
+      }
+
+      toast.success('Insumo creado correctamente');
       onSaved(); onClose();
     }
     setSaving(false);
@@ -165,9 +188,20 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
         {/* Stock y Costo */}
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Stock actual</label>
-            <input type="number" min="0" step="0.01" value={form.stock_actual} onChange={(e) => set('stock_actual', e.target.value)}
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              {isEdit ? 'Stock actual (calculado)' : 'Stock inicial'}
+            </label>
+            <input
+              type="number" min="0" step="0.01"
+              value={form.stock_actual}
+              onChange={(e) => set('stock_actual', e.target.value)}
+              disabled={isEdit}
+              title={isEdit ? 'El stock se actualiza automáticamente mediante entradas y salidas' : undefined}
+              className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${isEdit ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+            />
+            {isEdit && (
+              <p className="text-xs text-gray-400 mt-1">Modificar desde Entradas o Salidas</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Stock mínimo</label>
