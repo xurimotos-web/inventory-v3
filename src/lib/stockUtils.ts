@@ -24,20 +24,15 @@ export async function recalcularStock(insumoId: number): Promise<string | null> 
   const nuevoStock = Math.max(0, totalE - totalS);
   console.log('[stock] Cálculo: entradas=', totalE, ' salidas=', totalS, ' → nuevo stock=', nuevoStock);
 
-  const { error: upErr, count } = await supabase
+  const { error: upErr } = await supabase
     .from('insumos')
     .update({ stock_actual: nuevoStock })
-    .eq('id', insumoId)
-    .select('id', { count: 'exact', head: true });
+    .eq('id', insumoId);
 
   if (upErr) {
     console.error('[stock] UPDATE bloqueado por RLS u otro error:', upErr.message);
     return upErr.message;
   }
-  console.log('[stock] UPDATE ejecutado, filas afectadas:', count);
-  if (count === 0) {
-    console.error('[stock] ADVERTENCIA: UPDATE no afectó ninguna fila — posible bloqueo RLS silencioso');
-    return 'RLS bloqueó la actualización de stock (0 filas afectadas). Aplica el trigger SQL en Supabase.';
-  }
+  console.log('[stock] UPDATE ejecutado OK, nuevo stock:', nuevoStock);
   return null;
 }

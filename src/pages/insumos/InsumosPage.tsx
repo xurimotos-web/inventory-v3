@@ -12,7 +12,7 @@ import { PageLoader } from '../../components/shared/LoadingSpinner';
 import Modal from '../../components/shared/Modal';
 import ImageLightbox from '../../components/shared/ImageLightbox';
 import toast from 'react-hot-toast';
-import { formatCurrency, formatNumber, formatDate, exportToExcelMultiSheet } from '../../lib/exportExcel';
+import { formatCurrency, formatNumber, exportToExcelMultiSheet } from '../../lib/exportExcel';
 
 export default function InsumosPage() {
   const { isAdmin } = useAuth();
