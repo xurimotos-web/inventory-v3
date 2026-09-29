@@ -77,84 +77,25 @@ export default function InsumosPage() {
     return matchSearch && matchCat && estado === filtroEstado;
   });
 
-  async function handleExport() {
-    const [{ data: todasSalidas }, { data: todasEntradas }] = await Promise.all([
-      supabase
-        .from('salidas')
-        .select('insumo_id, cantidad, usuario_id, created_at, entregado_a, area, destino, departamento, cargo, observaciones, profile:profiles(nombre)')
-        .order('created_at', { ascending: false }),
-      supabase.from('entradas').select('insumo_id, cantidad'),
-    ]);
-
-    const mapaInsumo: Record<number, { nombre: string; unidad: string; codigo: string }> = {};
-    for (const i of insumos) mapaInsumo[i.id] = { nombre: i.nombre, unidad: i.unidad, codigo: i.codigo ?? '' };
-
-    const mapaEntradas: Record<number, number> = {};
-    for (const e of todasEntradas ?? []) {
-      mapaEntradas[e.insumo_id] = (mapaEntradas[e.insumo_id] ?? 0) + Number(e.cantidad);
-    }
-
-    const mapaConsumos: Record<number, number> = {};
-    for (const s of todasSalidas ?? []) {
-      mapaConsumos[s.insumo_id as number] = (mapaConsumos[s.insumo_id as number] ?? 0) + Number(s.cantidad);
-    }
-
-    const hoja1 = filtered.map((i) => {
+  function handleExport() {
+    const rows = filtered.map((i) => {
       const cat = (i.categoria as unknown as { nombre: string })?.nombre ?? '';
-      const estado = i.stock_actual <= 0 ? 'Agotado' : i.stock_actual <= i.stock_minimo ? 'Stock bajo' : 'En stock';
-      const totalEntradas = mapaEntradas[i.id] ?? 0;
-      const totalConsumos = mapaConsumos[i.id] ?? 0;
-      const stockCalculado = Math.max(0, totalEntradas - totalConsumos);
       return {
         'Nombre': i.nombre,
         'Código': i.codigo ?? '',
-        'Referencia': i.referencia ?? '',
         'Categoría': cat,
         'Unidad': i.unidad,
         'Stock Actual': i.stock_actual,
-        'Stock Calculado': stockCalculado,
-        'Total Entradas': totalEntradas,
-        'Total Salidas': totalConsumos,
-        'Stock Mínimo': i.stock_minimo,
         'Costo Unitario': i.costo_unitario,
         'Valor Total': i.stock_actual * i.costo_unitario,
-        'Estado': estado,
-        'Tienda referencia': i.tienda_referencia ?? '',
       };
     });
-
-    const insumoIdsExportados = new Set(filtered.map((i) => i.id));
-    const hoja2: Record<string, unknown>[] = [];
-    for (const s of todasSalidas ?? []) {
-      const insumoId = s.insumo_id as number;
-      if (!insumoIdsExportados.has(insumoId)) continue;
-      const p = s.profile as unknown as { nombre: string } | null;
-      const ins = mapaInsumo[insumoId];
-      hoja2.push({
-        'Fecha': formatDate(s.created_at as string),
-        'Insumo': ins?.nombre ?? '—',
-        'Código': ins?.codigo ?? '—',
-        'Unidad': ins?.unidad ?? '—',
-        'Cantidad': Number(s.cantidad),
-        'Registrado por': p?.nombre ?? '—',
-        'Departamento': (s as unknown as { departamento?: string }).departamento ?? '—',
-        'Cargo': (s as unknown as { cargo?: string }).cargo ?? '—',
-        'Entregado a': (s as unknown as { entregado_a?: string }).entregado_a ?? '—',
-        'Área': (s as unknown as { area?: string }).area ?? '—',
-        'Destino': (s as unknown as { destino?: string }).destino ?? '—',
-        'Observaciones': (s as unknown as { observaciones?: string }).observaciones ?? '—',
-      });
-    }
-
     const suffix = filtroCategoria ? `_${filtroCategoria}` : '_completo';
     exportToExcelMultiSheet(
-      [
-        { name: 'Inventario General', data: hoja1 },
-        { name: 'Salidas de Bodega', data: hoja2.length > 0 ? hoja2 : [{ Nota: 'No hay salidas registradas' }] },
-      ],
-      `inventario${suffix}_${new Date().toISOString().slice(0, 10)}`,
+      [{ name: 'Catálogo', data: rows }],
+      `catalogo${suffix}_${new Date().toISOString().slice(0, 10)}`,
     );
-    toast.success(`${hoja1.length} insumos · ${hoja2.length} salidas exportadas`);
+    toast.success(`${rows.length} insumos exportados`);
   }
 
   const totalValor = insumos.reduce((acc, i) => acc + i.stock_actual * i.costo_unitario, 0);

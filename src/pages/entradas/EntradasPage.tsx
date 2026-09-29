@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Download, PackagePlus, FileText, ExternalLink, TrendingUp, Calendar, ShoppingCart } from 'lucide-react';
+import { Plus, Search, Download, Upload, PackagePlus, FileText, ExternalLink, TrendingUp, Calendar, ShoppingCart } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Entrada } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { formatCurrency, formatDate, exportToExcel, formatNumber } from '../../lib/exportExcel';
 import EntradaModal from './EntradaModal';
+import ImportEntradasModal from './ImportEntradasModal';
 import ProductoHistorialModal from '../insumos/ProductoHistorialModal';
 import { PageLoader } from '../../components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -21,6 +22,7 @@ export default function EntradasPage() {
   const [filtroMes, setFiltroMes] = useState<number>(-1);
   const [filtroAnio, setFiltroAnio] = useState<number>(new Date().getFullYear());
   const [modalOpen, setModalOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [historialInsumoId, setHistorialInsumoId] = useState<number | null>(null);
 
   useEffect(() => { load(); }, []);
@@ -133,6 +135,12 @@ export default function EntradasPage() {
         {(isAdmin || can('entradas_exportar')) && (
           <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 active:scale-95">
             <Download size={15} /> Exportar Excel
+          </button>
+        )}
+        {isAdmin && (
+          <button onClick={() => setImportOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-emerald-200 rounded-xl text-emerald-700 text-sm font-medium hover:bg-emerald-50 hover:border-emerald-300 transition-all duration-150 active:scale-95">
+            <Upload size={15} /> Importar Excel
           </button>
         )}
         {(isAdmin || can('entradas_crear')) && (
@@ -251,6 +259,7 @@ export default function EntradasPage() {
       </div>
 
       <EntradaModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={load} />
+      <ImportEntradasModal open={importOpen} onClose={() => setImportOpen(false)} onImported={load} />
       <ProductoHistorialModal insumoId={historialInsumoId} onClose={() => setHistorialInsumoId(null)} />
     </div>
   );
