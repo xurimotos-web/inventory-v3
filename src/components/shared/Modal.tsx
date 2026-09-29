@@ -7,7 +7,7 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
 
 const sizeMap: Record<string, string> = {
@@ -15,6 +15,7 @@ const sizeMap: Record<string, string> = {
   md: '32rem',
   lg: '38rem',
   xl: '52rem',
+  '2xl': '74rem',
 };
 
 export default function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {

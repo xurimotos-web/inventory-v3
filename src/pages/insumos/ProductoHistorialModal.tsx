@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../components/shared/Modal';
 import { supabase } from '../../lib/supabase';
-import { PackagePlus, PackageMinus, Download, Clock, User, Package } from 'lucide-react';
+import { PackagePlus, PackageMinus, Download, Clock, User, Package, TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { formatCurrency, formatNumber, exportToExcelMultiSheet } from '../../lib/exportExcel';
 import toast from 'react-hot-toast';
 
@@ -45,6 +45,20 @@ interface InsumoInfo {
   imagen_url: string | null;
 }
 
+type MovType = 'entrada' | 'salida';
+interface Mov {
+  key: string;
+  type: MovType;
+  created_at: string;
+  cantidad: number;
+  registrado_por: string;
+  detalle: string;
+  detalle2: string;
+  observaciones: string;
+  extra: string;
+  saldo: number;
+}
+
 function formatDateTime(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -77,10 +91,45 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
     });
   }, [insumoId]);
 
+  // Build unified chronological timeline with running balance
+  const timeline: Mov[] = (() => {
+    const all: Omit<Mov, 'saldo'>[] = [
+      ...entradas.map((e) => ({
+        key: `e-${e.id}`,
+        type: 'entrada' as MovType,
+        created_at: e.created_at,
+        cantidad: e.cantidad,
+        registrado_por: e.profile?.nombre ?? '—',
+        detalle: e.proveedor ? `Proveedor: ${e.proveedor}` : '',
+        detalle2: e.numero_factura ? `Factura: ${e.numero_factura}` : '',
+        observaciones: e.observaciones ?? '',
+        extra: e.costo_unitario > 0 ? formatCurrency(e.costo_unitario) + ' c/u' : '',
+      })),
+      ...salidas.map((s) => ({
+        key: `s-${s.id}`,
+        type: 'salida' as MovType,
+        created_at: s.created_at,
+        cantidad: s.cantidad,
+        registrado_por: s.profile?.nombre ?? '—',
+        detalle: s.entregado_a ? `Entregado a: ${s.entregado_a}` : '',
+        detalle2: s.area ? `Área: ${s.area}` : (s.destino ? `Destino: ${s.destino}` : ''),
+        observaciones: s.observaciones ?? '',
+        extra: s.departamento ?? '',
+      })),
+    ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    // Build running balance oldest→newest, then reverse for display
+    let balance = 0;
+    const withSaldo = all.map((m) => {
+      balance += m.type === 'entrada' ? m.cantidad : -m.cantidad;
+      return { ...m, saldo: Math.max(0, balance) };
+    });
+    return withSaldo.reverse();
+  })();
+
   function handleExport() {
     if (!insumo) return;
     const hEntradas = entradas.map((e) => ({
-      'Tipo': 'Entrada',
       'Fecha / Hora': formatDateTime(e.created_at),
       'Cantidad': e.cantidad,
       'Unidad': insumo.unidad,
@@ -92,7 +141,6 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
       'Observaciones': e.observaciones ?? '—',
     }));
     const hSalidas = salidas.map((s) => ({
-      'Tipo': 'Salida',
       'Fecha / Hora': formatDateTime(s.created_at),
       'Cantidad': s.cantidad,
       'Unidad': insumo.unidad,
@@ -104,41 +152,45 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
       'Registrado por': s.profile?.nombre ?? '—',
       'Observaciones': s.observaciones ?? '—',
     }));
-    const todos = [
-      ...entradas.map((e) => ({
-        'Tipo': 'Entrada', 'Fecha / Hora': formatDateTime(e.created_at),
-        'Cantidad': `+${e.cantidad}`, 'Unidad': insumo.unidad,
-        'Detalle': e.proveedor ?? e.observaciones ?? '—',
-        'Registrado por': e.profile?.nombre ?? '—',
-      })),
-      ...salidas.map((s) => ({
-        'Tipo': 'Salida', 'Fecha / Hora': formatDateTime(s.created_at),
-        'Cantidad': `-${s.cantidad}`, 'Unidad': insumo.unidad,
-        'Detalle': s.entregado_a ?? s.observaciones ?? '—',
-        'Registrado por': s.profile?.nombre ?? '—',
-      })),
-    ].sort((a, b) => b['Fecha / Hora'].localeCompare(a['Fecha / Hora']));
+    const hTodos = [...timeline].reverse().map((m) => ({
+      'Tipo': m.type === 'entrada' ? 'Entrada' : 'Salida',
+      'Fecha / Hora': formatDateTime(m.created_at),
+      'Cantidad': m.type === 'entrada' ? `+${m.cantidad}` : `-${m.cantidad}`,
+      'Unidad': insumo.unidad,
+      'Saldo Acumulado': m.saldo,
+      'Registrado por': m.registrado_por,
+      'Detalle': [m.detalle, m.detalle2].filter(Boolean).join(' · ') || '—',
+      'Observaciones': m.observaciones || '—',
+    }));
 
     exportToExcelMultiSheet(
       [
-        { name: 'Historial Completo', data: todos },
+        { name: 'Kardex Completo', data: hTodos.length > 0 ? hTodos : [{ Nota: 'Sin movimientos' }] },
         { name: 'Entradas', data: hEntradas.length > 0 ? hEntradas : [{ Nota: 'Sin entradas' }] },
         { name: 'Salidas', data: hSalidas.length > 0 ? hSalidas : [{ Nota: 'Sin salidas' }] },
       ],
-      `historial_${(insumo.codigo ?? insumo.nombre).replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}`,
+      `kardex_${(insumo.codigo ?? insumo.nombre).replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}`,
     );
-    toast.success('Historial exportado');
+    toast.success('Kardex exportado a Excel (3 hojas)');
   }
 
   const totalEntradas = entradas.reduce((s, e) => s + e.cantidad, 0);
   const totalSalidas = salidas.reduce((s, e) => s + e.cantidad, 0);
   const totalCosto = entradas.reduce((s, e) => s + e.cantidad * e.costo_unitario, 0);
 
-  const stockEstado = !insumo ? '' : insumo.stock_actual <= 0 ? 'Agotado' : insumo.stock_actual <= insumo.stock_minimo ? 'Stock bajo' : 'En stock';
-  const stockColor = !insumo ? '' : insumo.stock_actual <= 0 ? 'text-rose-600 bg-rose-50 border-rose-200' : insumo.stock_actual <= insumo.stock_minimo ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-emerald-600 bg-emerald-50 border-emerald-200';
+  const stockColor = !insumo ? '' : insumo.stock_actual <= 0
+    ? 'text-rose-700 bg-rose-50 border-rose-200'
+    : insumo.stock_actual <= insumo.stock_minimo
+      ? 'text-amber-700 bg-amber-50 border-amber-200'
+      : 'text-emerald-700 bg-emerald-50 border-emerald-200';
+  const stockLabel = !insumo ? '' : insumo.stock_actual <= 0 ? 'Agotado' : insumo.stock_actual <= insumo.stock_minimo ? 'Stock bajo' : 'En stock';
+
+  const rows = tab === 'todos' ? timeline : tab === 'entradas'
+    ? timeline.filter((m) => m.type === 'entrada')
+    : timeline.filter((m) => m.type === 'salida');
 
   return (
-    <Modal open={open} onClose={onClose} title="Historial de Producto" size="xl">
+    <Modal open={open} onClose={onClose} title="Kardex / Historial de Producto" size="2xl">
       {loading && (
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
@@ -147,57 +199,86 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
 
       {!loading && insumo && (
         <div className="space-y-5">
-          {/* Header del producto */}
-          <div className="flex items-start gap-4 p-4 bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-2xl">
+
+          {/* ── Header producto ── */}
+          <div className="flex items-center gap-5 p-4 bg-gradient-to-r from-slate-50 to-white border border-slate-100 rounded-2xl">
             {insumo.imagen_url ? (
-              <img src={insumo.imagen_url} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0 shadow-sm" />
+              <img src={insumo.imagen_url} alt="" className="w-20 h-20 rounded-2xl object-cover flex-shrink-0 shadow-md" />
             ) : (
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
-                <Package size={24} className="text-indigo-300" />
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 border border-indigo-200/60 flex items-center justify-center flex-shrink-0">
+                <Package size={30} className="text-indigo-400" />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-lg font-bold text-gray-900 leading-tight">{insumo.nombre}</p>
-              {insumo.codigo && (
-                <span className="inline-block mt-1 text-xs font-mono bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-0.5 rounded-md">
-                  {insumo.codigo}
+              <p className="text-xl font-bold text-gray-900 leading-tight">{insumo.nombre}</p>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                {insumo.codigo && (
+                  <span className="text-xs font-mono font-semibold bg-indigo-50 text-indigo-600 border border-indigo-200 px-2.5 py-0.5 rounded-lg">
+                    {insumo.codigo}
+                  </span>
+                )}
+                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-lg border ${stockColor}`}>
+                  {stockLabel}
                 </span>
-              )}
+              </div>
             </div>
-            <div className="flex flex-col items-end gap-1.5">
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${stockColor}`}>{stockEstado}</span>
-              <span className="text-sm font-bold text-gray-800">{formatNumber(insumo.stock_actual)} <span className="text-xs text-gray-400 font-normal">{insumo.unidad}</span></span>
-            </div>
-          </div>
-
-          {/* KPIs */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold text-emerald-700">{formatNumber(totalEntradas)}</p>
-              <p className="text-xs text-emerald-600 mt-0.5">{insumo.unidad} ingresados</p>
-              <p className="text-xs text-emerald-500 font-medium">{entradas.length} entradas</p>
-            </div>
-            <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold text-rose-700">{formatNumber(totalSalidas)}</p>
-              <p className="text-xs text-rose-600 mt-0.5">{insumo.unidad} despachados</p>
-              <p className="text-xs text-rose-500 font-medium">{salidas.length} salidas</p>
-            </div>
-            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
-              <p className="text-lg font-bold text-indigo-700 leading-tight">{formatCurrency(totalCosto)}</p>
-              <p className="text-xs text-indigo-600 mt-0.5">costo total entradas</p>
-              <p className="text-xs text-indigo-500 font-medium">valor invertido</p>
+            <div className="text-right flex-shrink-0">
+              <p className="text-3xl font-bold text-gray-800">{formatNumber(insumo.stock_actual)}</p>
+              <p className="text-sm text-gray-400">{insumo.unidad} en bodega</p>
+              <p className="text-xs text-gray-300 mt-0.5">mín. {formatNumber(insumo.stock_minimo)}</p>
             </div>
           </div>
 
-          {/* Tabs + Export */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex gap-1.5 bg-gray-100 p-1 rounded-xl">
-              {([['todos', 'Todos'], ['entradas', `Entradas (${entradas.length})`], ['salidas', `Salidas (${salidas.length})`]] as [Tab, string][]).map(([key, label]) => (
+          {/* ── KPIs ── */}
+          <div className="grid grid-cols-4 gap-3">
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-500/20">
+              <div className="flex items-center justify-between mb-1.5">
+                <TrendingUp size={16} className="text-white/70" />
+                <span className="text-white/60 text-xs">Ingresos</span>
+              </div>
+              <p className="text-2xl font-bold">{formatNumber(totalEntradas)}</p>
+              <p className="text-xs text-white/70 mt-0.5">{insumo.unidad} · {entradas.length} registros</p>
+            </div>
+            <div className="bg-gradient-to-br from-rose-500 to-red-600 rounded-2xl p-4 text-white shadow-lg shadow-rose-500/20">
+              <div className="flex items-center justify-between mb-1.5">
+                <TrendingDown size={16} className="text-white/70" />
+                <span className="text-white/60 text-xs">Despachos</span>
+              </div>
+              <p className="text-2xl font-bold">{formatNumber(totalSalidas)}</p>
+              <p className="text-xs text-white/70 mt-0.5">{insumo.unidad} · {salidas.length} registros</p>
+            </div>
+            <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl p-4 text-white shadow-lg shadow-indigo-500/20">
+              <div className="flex items-center justify-between mb-1.5">
+                <Activity size={16} className="text-white/70" />
+                <span className="text-white/60 text-xs">Movimientos</span>
+              </div>
+              <p className="text-2xl font-bold">{entradas.length + salidas.length}</p>
+              <p className="text-xs text-white/70 mt-0.5">total histórico</p>
+            </div>
+            <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-4 text-white shadow-lg shadow-amber-500/20">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-white/60 text-[10px] font-semibold uppercase tracking-wide">Inversión</span>
+              </div>
+              <p className="text-lg font-bold leading-tight">{formatCurrency(totalCosto)}</p>
+              <p className="text-xs text-white/70 mt-0.5">costo total entradas</p>
+            </div>
+          </div>
+
+          {/* ── Tabs + Export ── */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex gap-1 bg-gray-100/80 p-1 rounded-xl">
+              {([
+                ['todos', `Kardex (${entradas.length + salidas.length})`],
+                ['entradas', `Entradas (${entradas.length})`],
+                ['salidas', `Salidas (${salidas.length})`],
+              ] as [Tab, string][]).map(([key, label]) => (
                 <button
                   key={key}
                   onClick={() => setTab(key)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
-                    tab === key ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-150 whitespace-nowrap ${
+                    tab === key
+                      ? 'bg-white text-gray-800 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   {label}
@@ -206,112 +287,94 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
             </div>
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-600 text-xs font-medium hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-xs font-medium hover:from-indigo-600 hover:to-violet-700 transition-all shadow-md shadow-indigo-500/25 active:scale-95"
             >
               <Download size={14} />
-              Exportar Excel
+              Exportar Kardex (Excel)
             </button>
           </div>
 
-          {/* Tabla historial */}
-          <div className="border border-gray-100 rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
+          {/* ── Tabla ── */}
+          <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto" style={{ maxHeight: '460px', overflowY: 'auto' }}>
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Tipo</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Fecha / Hora</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Cantidad</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Registrado por</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden md:table-cell">Detalle</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Observaciones</th>
+                  <tr className="bg-gradient-to-r from-gray-50 to-gray-50/60 border-b border-gray-100">
+                    <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Tipo</th>
+                    <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-36">Fecha / Hora</th>
+                    <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Cantidad</th>
+                    {tab === 'todos' && <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-24">Saldo</th>}
+                    <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Registrado por</th>
+                    <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Detalle</th>
+                    <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Observaciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {/* ENTRADAS */}
-                  {(tab === 'todos' || tab === 'entradas') && entradas.map((e) => (
-                    <tr key={`e-${e.id}`} className="hover:bg-emerald-50/30 transition-colors">
+                <tbody className="divide-y divide-gray-50/80">
+                  {rows.map((m) => (
+                    <tr
+                      key={m.key}
+                      className={`transition-colors duration-100 ${m.type === 'entrada' ? 'hover:bg-emerald-50/40' : 'hover:bg-rose-50/40'}`}
+                    >
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200/60 rounded-full text-xs font-semibold text-emerald-700">
-                          <PackagePlus size={11} /> Entrada
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 text-gray-600">
-                          <Clock size={11} className="text-gray-400 flex-shrink-0" />
-                          <span className="text-xs whitespace-nowrap">{formatDateTime(e.created_at)}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-bold text-emerald-600">+{formatNumber(e.cantidad)}</span>
-                        <span className="text-gray-400 text-xs ml-1">{insumo.unidad}</span>
+                        {m.type === 'entrada' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/70 rounded-full text-xs font-semibold text-emerald-700">
+                            <PackagePlus size={11} /> Entrada
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-200/70 rounded-full text-xs font-semibold text-rose-700">
+                            <PackageMinus size={11} /> Salida
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                            <User size={11} className="text-emerald-600" />
-                          </div>
-                          <span className="text-gray-700 text-xs">{e.profile?.nombre ?? '—'}</span>
+                          <Clock size={11} className="text-gray-300 flex-shrink-0" />
+                          <span className="text-xs text-gray-600 whitespace-nowrap">{formatDateTime(m.created_at)}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <div className="text-xs text-gray-600 space-y-0.5">
-                          {e.proveedor && <p><span className="text-gray-400">Proveedor:</span> {e.proveedor}</p>}
-                          {e.numero_factura && <p><span className="text-gray-400">Factura:</span> {e.numero_factura}</p>}
-                          {e.costo_unitario > 0 && <p><span className="text-gray-400">Costo:</span> {formatCurrency(e.costo_unitario)} · Total: {formatCurrency(e.cantidad * e.costo_unitario)}</p>}
-                          {!e.proveedor && !e.numero_factura && <span className="text-gray-300">—</span>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 hidden lg:table-cell max-w-40 truncate">{e.observaciones ?? '—'}</td>
-                    </tr>
-                  ))}
-
-                  {/* SALIDAS */}
-                  {(tab === 'todos' || tab === 'salidas') && salidas.map((s) => (
-                    <tr key={`s-${s.id}`} className="hover:bg-rose-50/30 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-rose-50 border border-rose-200/60 rounded-full text-xs font-semibold text-rose-700">
-                          <PackageMinus size={11} /> Salida
+                        <span className={`text-sm font-bold ${m.type === 'entrada' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {m.type === 'entrada' ? '+' : '-'}{formatNumber(m.cantidad)}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 text-gray-600">
-                          <Clock size={11} className="text-gray-400 flex-shrink-0" />
-                          <span className="text-xs whitespace-nowrap">{formatDateTime(s.created_at)}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-bold text-rose-600">-{formatNumber(s.cantidad)}</span>
                         <span className="text-gray-400 text-xs ml-1">{insumo.unidad}</span>
                       </td>
+                      {tab === 'todos' && (
+                        <td className="px-4 py-3">
+                          <span className="text-sm font-semibold text-gray-700">{formatNumber(m.saldo)}</span>
+                          <span className="text-gray-400 text-xs ml-1">{insumo.unidad}</span>
+                        </td>
+                      )}
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
-                            <User size={11} className="text-rose-600" />
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${m.type === 'entrada' ? 'bg-emerald-100' : 'bg-rose-100'}`}>
+                            <User size={11} className={m.type === 'entrada' ? 'text-emerald-600' : 'text-rose-600'} />
                           </div>
-                          <span className="text-gray-700 text-xs">{s.profile?.nombre ?? '—'}</span>
+                          <span className="text-gray-700 text-xs font-medium">{m.registrado_por}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <div className="text-xs text-gray-600 space-y-0.5">
-                          {s.entregado_a && <p><span className="text-gray-400">Entregado a:</span> {s.entregado_a}</p>}
-                          {s.area && <p><span className="text-gray-400">Área:</span> {s.area}</p>}
-                          {s.destino && <p><span className="text-gray-400">Destino:</span> {s.destino}</p>}
-                          {s.departamento && <p><span className="text-gray-400">Depto:</span> {s.departamento}</p>}
-                          {!s.entregado_a && !s.area && !s.destino && <span className="text-gray-300">—</span>}
+                      <td className="px-4 py-3">
+                        <div className="text-xs text-gray-600 space-y-0.5 max-w-[200px]">
+                          {m.detalle && <p className="truncate" title={m.detalle}>{m.detalle}</p>}
+                          {m.detalle2 && <p className="truncate text-gray-400" title={m.detalle2}>{m.detalle2}</p>}
+                          {m.extra && <p className="text-indigo-500 text-[11px]">{m.extra}</p>}
+                          {!m.detalle && !m.detalle2 && <span className="text-gray-300">—</span>}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 hidden lg:table-cell max-w-40 truncate">{s.observaciones ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px]">
+                        <p className="truncate" title={m.observaciones || '—'}>{m.observaciones || '—'}</p>
+                      </td>
                     </tr>
                   ))}
 
-                  {/* Empty state */}
-                  {((tab === 'entradas' && entradas.length === 0) ||
-                    (tab === 'salidas' && salidas.length === 0) ||
-                    (tab === 'todos' && entradas.length === 0 && salidas.length === 0)) && (
+                  {rows.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-12 text-center text-gray-400 text-sm">
-                        Sin registros en esta sección
+                      <td colSpan={tab === 'todos' ? 7 : 6} className="px-4 py-14 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
+                            <Package size={20} className="text-gray-300" />
+                          </div>
+                          <p className="text-gray-400 text-sm">Sin registros en esta sección</p>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -319,9 +382,9 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
               </table>
             </div>
           </div>
+
         </div>
       )}
     </Modal>
   );
 }
-

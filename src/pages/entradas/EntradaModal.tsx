@@ -158,9 +158,28 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
               options={proveedores.map((p) => ({ value: p, label: p }))}
               value={form.proveedor}
               onChange={(val) => set('proveedor', val)}
-              placeholder="Buscar o escribir proveedor..."
+              placeholder="Buscar o seleccionar..."
               freeText
             />
+            {/* Chips de selección rápida */}
+            {proveedores.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {proveedores.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => set('proveedor', p)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all duration-150 active:scale-95 ${
+                      form.proveedor === p
+                        ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-500/30'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">N° Factura</label>
