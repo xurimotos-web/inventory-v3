@@ -135,7 +135,7 @@ export default function ImportEntradasModal({ open, onClose, onImported }: Props
       const { error } = await supabase.from('entradas').insert({
         insumo_id: row.insumo_id,
         cantidad: row.cantidad,
-        costo_unitario: row.costo_unitario || null,
+        costo_unitario: row.costo_unitario || 0,
         proveedor: row.proveedor || null,
         numero_factura: row.numero_factura || null,
         observaciones: row.observaciones || null,
