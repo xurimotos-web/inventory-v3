@@ -56,6 +56,8 @@ interface Mov {
   detalle2: string;
   observaciones: string;
   extra: string;
+  area: string;
+  destino: string;
   saldo: number;
 }
 
@@ -104,6 +106,8 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
         detalle2: e.numero_factura ? `Factura: ${e.numero_factura}` : '',
         observaciones: e.observaciones ?? '',
         extra: e.costo_unitario > 0 ? formatCurrency(e.costo_unitario) + ' c/u' : '',
+        area: '',
+        destino: '',
       })),
       ...salidas.map((s) => ({
         key: `s-${s.id}`,
@@ -112,9 +116,11 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
         cantidad: s.cantidad,
         registrado_por: s.profile?.nombre ?? '—',
         detalle: s.entregado_a ? `Entregado a: ${s.entregado_a}` : '',
-        detalle2: s.area ? `Área: ${s.area}` : (s.destino ? `Destino: ${s.destino}` : ''),
+        detalle2: '',
         observaciones: s.observaciones ?? '',
         extra: s.departamento ?? '',
+        area: s.area ?? '',
+        destino: s.destino ?? '',
       })),
     ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
@@ -160,6 +166,8 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
       'Saldo Acumulado': m.saldo,
       'Registrado por': m.registrado_por,
       'Detalle': [m.detalle, m.detalle2].filter(Boolean).join(' · ') || '—',
+      'Área': m.area || '—',
+      'Destino': m.destino || '—',
       'Observaciones': m.observaciones || '—',
     }));
 
@@ -300,12 +308,14 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-gradient-to-r from-gray-50 to-gray-50/60 border-b border-gray-100">
-                    <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Tipo</th>
+                    <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-24">Tipo</th>
                     <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-36">Fecha / Hora</th>
-                    <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Cantidad</th>
-                    {tab === 'todos' && <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-24">Saldo</th>}
+                    <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-24">Cantidad</th>
+                    {tab === 'todos' && <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-20">Saldo</th>}
                     <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Registrado por</th>
                     <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Detalle</th>
+                    {(tab === 'salidas' || tab === 'todos') && <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Área</th>}
+                    {(tab === 'salidas' || tab === 'todos') && <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Destino</th>}
                     <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Observaciones</th>
                   </tr>
                 </thead>
@@ -353,14 +363,24 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="text-xs text-gray-600 space-y-0.5 max-w-[200px]">
+                        <div className="text-xs text-gray-600 space-y-0.5 max-w-[180px]">
                           {m.detalle && <p className="truncate" title={m.detalle}>{m.detalle}</p>}
                           {m.detalle2 && <p className="truncate text-gray-400" title={m.detalle2}>{m.detalle2}</p>}
                           {m.extra && <p className="text-indigo-500 text-[11px]">{m.extra}</p>}
                           {!m.detalle && !m.detalle2 && <span className="text-gray-300">—</span>}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px]">
+                      {(tab === 'salidas' || tab === 'todos') && (
+                        <td className="px-4 py-3 text-xs text-gray-500 max-w-[120px]">
+                          <p className="truncate" title={m.area || '—'}>{m.area || <span className="text-gray-300">—</span>}</p>
+                        </td>
+                      )}
+                      {(tab === 'salidas' || tab === 'todos') && (
+                        <td className="px-4 py-3 text-xs text-gray-500 max-w-[120px]">
+                          <p className="truncate" title={m.destino || '—'}>{m.destino || <span className="text-gray-300">—</span>}</p>
+                        </td>
+                      )}
+                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[160px]">
                         <p className="truncate" title={m.observaciones || '—'}>{m.observaciones || '—'}</p>
                       </td>
                     </tr>
@@ -368,7 +388,7 @@ export default function ProductoHistorialModal({ insumoId, onClose }: Props) {
 
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={tab === 'todos' ? 7 : 6} className="px-4 py-14 text-center">
+                      <td colSpan={tab === 'todos' ? 9 : tab === 'salidas' ? 8 : 6} className="px-4 py-14 text-center">
                         <div className="flex flex-col items-center gap-2">
                           <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
                             <Package size={20} className="text-gray-300" />
