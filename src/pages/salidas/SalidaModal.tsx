@@ -55,6 +55,7 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
     if (!form.insumo_id) { toast.error('Selecciona un insumo'); return; }
     const cantidad = Number(form.cantidad);
     if (!cantidad || cantidad <= 0) { toast.error('La cantidad debe ser mayor a 0'); return; }
+    if (!Number.isInteger(cantidad)) { toast.error('La cantidad debe ser un número entero, sin decimales'); return; }
 
     const insumo = insumos.find((i) => i.id === Number(form.insumo_id));
     if (!insumo) return;
@@ -266,8 +267,8 @@ export default function SalidaModal({ open, onClose, onSaved }: SalidaModalProps
             </label>
             <input
               type="number"
-              min="0.01"
-              step="0.01"
+              min="1"
+              step="1"
               max={disponibleSeleccionado || undefined}
               value={form.cantidad}
               onChange={(e) => set('cantidad', e.target.value)}

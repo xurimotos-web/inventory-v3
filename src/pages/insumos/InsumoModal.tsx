@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../components/shared/Modal';
 import ImageUpload from '../../components/shared/ImageUpload';
+import ComboBox from '../../components/shared/ComboBox';
 import { supabase } from '../../lib/supabase';
 import type { Insumo, Categoria, Unidad } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -16,7 +17,7 @@ interface InsumoModalProps {
 
 const EMPTY = {
   codigo: '', nombre: '', descripcion: '', referencia: '', tienda_referencia: '',
-  categoria_id: '', unidad: 'unidad',
+  categoria_id: '', unidad: 'unidad', proveedor: '',
   stock_actual: 0, stock_minimo: 0, costo_unitario: 0, imagen_url: '',
 };
 
@@ -30,12 +31,14 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
   const [form, setForm] = useState({ ...EMPTY });
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [unidades, setUnidades] = useState<Unidad[]>([]);
+  const [proveedores, setProveedores] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const isEdit = !!insumo;
 
   useEffect(() => {
     supabase.from('categorias').select('*').order('nombre').then(({ data }) => setCategorias(data ?? []));
     supabase.from('unidades').select('*').order('nombre').then(({ data }) => setUnidades(data ?? []));
+    supabase.from('proveedores').select('nombre').order('nombre').then(({ data }) => setProveedores((data ?? []).map((p: { nombre: string }) => p.nombre)));
   }, []);
 
   useEffect(() => {
@@ -45,9 +48,10 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
         nombre: insumo.nombre,
         descripcion: insumo.descripcion ?? '',
         referencia: insumo.referencia ?? '',
-        tienda_referencia: insumo.tienda_referencia ?? '',
+        tienda_referencia: (insumo as unknown as { tienda_referencia?: string }).tienda_referencia ?? '',
         categoria_id: String(insumo.categoria_id ?? ''),
         unidad: insumo.unidad,
+        proveedor: (insumo as unknown as { proveedor?: string }).proveedor ?? '',
         stock_actual: insumo.stock_actual,
         stock_minimo: insumo.stock_minimo,
         costo_unitario: insumo.costo_unitario,
@@ -74,6 +78,7 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
       tienda_referencia: form.tienda_referencia.trim() || null,
       categoria_id: form.categoria_id ? Number(form.categoria_id) : null,
       unidad: form.unidad,
+      proveedor: form.proveedor.trim() || null,
       stock_minimo: Number(form.stock_minimo),
       costo_unitario: Number(form.costo_unitario),
       imagen_url: form.imagen_url || null,
@@ -161,6 +166,32 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
               placeholder="Ej: Ferretería Juan"
               className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
+        </div>
+
+        {/* Proveedor */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Proveedor principal</label>
+          <ComboBox
+            options={proveedores.map((p) => ({ value: p, label: p }))}
+            value={form.proveedor}
+            onChange={(val) => set('proveedor', val)}
+            placeholder="Buscar o escribir proveedor..."
+            freeText
+          />
+          {proveedores.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {proveedores.map((p) => (
+                <button key={p} type="button" onClick={() => set('proveedor', p)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-all duration-150 active:scale-95 ${
+                    form.proveedor === p
+                      ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
+                  }`}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Categoría y Unidad */}

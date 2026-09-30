@@ -72,6 +72,7 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
   async function handleSave() {
     if (!form.insumo_id) { toast.error('Selecciona un insumo'); return; }
     if (!form.cantidad || Number(form.cantidad) <= 0) { toast.error('La cantidad debe ser mayor a 0'); return; }
+    if (!Number.isInteger(Number(form.cantidad))) { toast.error('La cantidad debe ser un número entero, sin decimales'); return; }
 
     setSaving(true);
     const facturaUrl = await uploadFactura();
@@ -140,7 +141,7 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Cantidad *{selectedInsumo ? ` (${selectedInsumo.unidad})` : ''}</label>
-            <input type="number" min="0.01" step="0.01" value={form.cantidad} onChange={(e) => set('cantidad', e.target.value)} placeholder="0"
+            <input type="number" min="1" step="1" value={form.cantidad} onChange={(e) => set('cantidad', e.target.value)} placeholder="0"
               className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
