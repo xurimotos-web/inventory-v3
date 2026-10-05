@@ -34,8 +34,8 @@ export default function EntradaModal({ open, onClose, onSaved }: EntradaModalPro
     if (!open) return;
     supabase.from('insumos').select('*, categoria:categorias(nombre)').eq('activo', true).order('nombre')
       .then(({ data }) => setInsumos(data ?? []));
-    supabase.from('proveedores').select('nombre').order('nombre')
-      .then(({ data }) => setProveedores((data ?? []).map((p: { nombre: string }) => p.nombre)));
+    supabase.from('proveedores').select('nombre_local').order('nombre_local')
+      .then(({ data }) => setProveedores((data ?? []).map((p: { nombre_local: string }) => p.nombre_local)));
   }, [open]);
 
   useEffect(() => {

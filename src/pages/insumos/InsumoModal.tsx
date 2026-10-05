@@ -39,7 +39,7 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
     if (!open) return;
     supabase.from('categorias').select('*').order('nombre').then(({ data }) => setCategorias(data ?? []));
     supabase.from('unidades').select('*').order('nombre').then(({ data }) => setUnidades(data ?? []));
-    supabase.from('proveedores').select('nombre').order('nombre').then(({ data }) => setProveedores((data ?? []).map((p: { nombre: string }) => p.nombre)));
+    supabase.from('proveedores').select('nombre_local').order('nombre_local').then(({ data }) => setProveedores((data ?? []).map((p: { nombre_local: string }) => p.nombre_local)));
   }, [open]);
 
   useEffect(() => {
