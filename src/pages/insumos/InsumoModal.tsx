@@ -100,7 +100,7 @@ export default function InsumoModal({ open, onClose, onSaved, insumo }: InsumoMo
         .select('id')
         .single();
 
-      if (error || !created) { toast.error('Error al crear el insumo'); setSaving(false); return; }
+      if (error || !created) { toast.error('Error al crear el insumo: ' + (error?.message ?? 'sin respuesta')); setSaving(false); return; }
 
       if (stockInicial > 0) {
         await supabase.from('entradas').insert({

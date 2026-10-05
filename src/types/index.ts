@@ -53,6 +53,7 @@ export interface Insumo {
   descripcion?: string;
   referencia?: string;
   tienda_referencia?: string;
+  proveedor?: string;
   categoria_id?: number;
   categoria?: Categoria;
   unidad: string;
