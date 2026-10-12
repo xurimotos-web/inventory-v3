@@ -92,7 +92,7 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
 }
 
 export default function ConfiguracionPage() {
-  const [unlocked, setUnlocked] = useState(() => checkPinSession());
+  const [unlocked, setUnlocked] = useState(false);
   const [tab, setTab] = useState<Tab>('categorias');
 
   if (!unlocked) return <PinGate onUnlock={() => setUnlocked(true)} />;
