@@ -8,7 +8,7 @@ import UsuarioModal from '../usuarios/UsuarioModal';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
 import { formatDate } from '../../lib/exportExcel';
 import toast from 'react-hot-toast';
-import { CONFIG_PIN, checkPinSession, setPinSession } from '../../lib/permisos';
+import { CONFIG_PIN, setPinSession } from '../../lib/permisos';
 import PermisosPanel from './PermisosPanel';
 
 type Tab = 'categorias' | 'unidades' | 'usuarios' | 'areas' | 'destinos' | 'colaboradores' | 'departamentos' | 'cargos' | 'permisos';
