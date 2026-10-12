@@ -166,7 +166,7 @@ export function savePermisosLocal(config: PermisosConfig) {
   localStorage.setItem(LS_KEY, JSON.stringify(config));
 }
 
-export const CONFIG_PIN = '300997';
+export const CONFIG_PIN = '2026';
 const PIN_SESSION_KEY = 'inventario_config_unlocked';
 
 export function checkPinSession(): boolean {
